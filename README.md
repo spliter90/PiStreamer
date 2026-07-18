@@ -26,7 +26,7 @@ PiStreamer macht aus einem Raspberry Pi 5 mit USB-Webcam eine über das Handy be
 
 ```bash
 sudo apt update && sudo apt install -y git
-git clone https://github.com/DEIN-BENUTZER/PiStreamer.git
+git clone https://github.com/spliter90/PiStreamer.git
 cd PiStreamer
 sudo ./install.sh
 ```
