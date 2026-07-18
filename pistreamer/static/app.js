@@ -1,0 +1,4 @@
+const fmt=s=>new Date(s*1000).toISOString().slice(11,19);
+async function refresh(){const r=await fetch('/api/status');if(r.status===401){location='/login';return}const d=await r.json();document.querySelector('#state').textContent=d.streaming?'LIVE':'OFFLINE';document.querySelector('#dot').classList.toggle('live',d.streaming);document.querySelector('#uptime').textContent=fmt(d.uptime);document.querySelector('#cpu').textContent=d.cpu+' %';document.querySelector('#ram').textContent=d.ram+' %';document.querySelector('#temp').textContent=d.temperature===null?'–':d.temperature+' °C';const l=await fetch('/api/logs').then(x=>x.json());document.querySelector('#logs').textContent=l.lines.slice(-80).join('\n')||'Noch keine Meldungen.'}
+async function action(name){const r=await fetch('/api/'+name,{method:'POST'});const d=await r.json();if(!r.ok)alert(d.error||'Fehler');setTimeout(refresh,500)}
+refresh();setInterval(refresh,3000);

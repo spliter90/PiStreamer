@@ -1,0 +1,16 @@
+web:
+  host: 0.0.0.0
+  port: 8080
+  username: admin
+  password: change-me
+stream:
+  youtube_url: rtmp://a.rtmp.youtube.com/live2
+  stream_key: ""
+  video_device: /dev/video0
+  audio_device: default
+  width: 1280
+  height: 720
+  fps: 30
+  video_bitrate: 2500k
+  audio_bitrate: 128k
+  autostart: false
