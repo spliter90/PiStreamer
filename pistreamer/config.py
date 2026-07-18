@@ -28,6 +28,9 @@ DEFAULT_CONFIG = {
         "text_position": "bottom_left",
         "text_size": 32,
     },
+    "pause_screen": {
+        "image_path": "/opt/pistreamer/data/pause.png",
+    },
 }
 
 CONFIG_PATH = Path(os.environ.get("PISTREAMER_CONFIG", "/etc/pistreamer/config.yaml"))
