@@ -8,10 +8,7 @@
 </head>
 <body>
   <header>
-    <div>
-      <p class="eyebrow">Konfiguration</p>
-      <h1>Einstellungen</h1>
-    </div>
+    <div><p class="eyebrow">Konfiguration</p><h1>Einstellungen</h1></div>
     <nav><a href="/">← Dashboard</a></nav>
   </header>
 
@@ -28,22 +25,14 @@
 
         <article class="card option-card" id="video-card">
           <div class="option-card__header"><div class="option-icon">📷</div><div><h2>Kamera</h2><p class="muted">Videoquelle und Bildrate</p></div></div>
-          <label>Video-Gerät
-            <select id="video-device" name="video_device" data-current="{{ config.stream.video_device }}" required>
-              <option value="{{ config.stream.video_device }}">{{ config.stream.video_device }}</option>
-            </select>
-          </label>
+          <label>Video-Gerät<select id="video-device" name="video_device" data-current="{{ config.stream.video_device }}" required><option value="{{ config.stream.video_device }}">{{ config.stream.video_device }}</option></select></label>
           <label>Bilder pro Sekunde<select name="fps"><option value="25" {% if config.stream.fps == 25 %}selected{% endif %}>25 FPS</option><option value="30" {% if config.stream.fps == 30 %}selected{% endif %}>30 FPS</option></select></label>
           <p class="field-hint" id="video-status">Kamerageräte werden gesucht …</p>
         </article>
 
         <article class="card option-card" id="audio-card">
           <div class="option-card__header"><div class="option-icon">🎤</div><div><h2>Audio</h2><p class="muted">Mikrofon oder Audioeingang</p></div></div>
-          <label>Audio-Gerät
-            <select id="audio-device" name="audio_device" data-current="{{ config.stream.audio_device }}" required>
-              <option value="{{ config.stream.audio_device }}">{{ config.stream.audio_device }}</option>
-            </select>
-          </label>
+          <label>Audio-Gerät<select id="audio-device" name="audio_device" data-current="{{ config.stream.audio_device }}" required><option value="{{ config.stream.audio_device }}">{{ config.stream.audio_device }}</option></select></label>
           <p class="field-hint" id="audio-status">Audiogeräte werden gesucht …</p>
           <button type="button" class="secondary" id="refresh-devices">↻ Geräte neu suchen</button>
         </article>
@@ -56,39 +45,21 @@
 
         <article class="card option-card">
           <div class="option-card__header"><div class="option-icon">🎨</div><div><h2>Einblendungen</h2><p class="muted">Logo und Text direkt in das Videobild einfügen</p></div></div>
-
-          <label class="toggle-row">
-            <span><strong>Logo anzeigen</strong><small>Transparente PNG-Dateien werden unterstützt</small></span>
-            <input type="checkbox" name="logo_enabled" {% if config.overlay.logo_enabled %}checked{% endif %}>
-          </label>
+          <label class="toggle-row"><span><strong>Logo anzeigen</strong><small>Transparente PNG-Dateien werden unterstützt</small></span><input type="checkbox" name="logo_enabled" {% if config.overlay.logo_enabled %}checked{% endif %}></label>
           <label>Logo-Datei<input name="logo_path" value="{{ config.overlay.logo_path }}" placeholder="/opt/pistreamer/data/logo.png"></label>
-          <label>Logo-Position
-            <select name="logo_position">
-              <option value="top_left" {% if config.overlay.logo_position == 'top_left' %}selected{% endif %}>Oben links</option>
-              <option value="top_right" {% if config.overlay.logo_position == 'top_right' %}selected{% endif %}>Oben rechts</option>
-              <option value="bottom_left" {% if config.overlay.logo_position == 'bottom_left' %}selected{% endif %}>Unten links</option>
-              <option value="bottom_right" {% if config.overlay.logo_position == 'bottom_right' %}selected{% endif %}>Unten rechts</option>
-            </select>
-          </label>
+          <label>Logo-Position<select name="logo_position"><option value="top_left" {% if config.overlay.logo_position == 'top_left' %}selected{% endif %}>Oben links</option><option value="top_right" {% if config.overlay.logo_position == 'top_right' %}selected{% endif %}>Oben rechts</option><option value="bottom_left" {% if config.overlay.logo_position == 'bottom_left' %}selected{% endif %}>Unten links</option><option value="bottom_right" {% if config.overlay.logo_position == 'bottom_right' %}selected{% endif %}>Unten rechts</option></select></label>
           <label>Logo-Breite in Prozent<input type="number" name="logo_width_percent" min="5" max="50" value="{{ config.overlay.logo_width_percent }}"></label>
-
           <hr>
-
-          <label class="toggle-row">
-            <span><strong>Text anzeigen</strong><small>Weißer Text mit halbtransparentem Hintergrund</small></span>
-            <input type="checkbox" name="text_enabled" {% if config.overlay.text_enabled %}checked{% endif %}>
-          </label>
+          <label class="toggle-row"><span><strong>Text anzeigen</strong><small>Weißer Text mit halbtransparentem Hintergrund</small></span><input type="checkbox" name="text_enabled" {% if config.overlay.text_enabled %}checked{% endif %}></label>
           <label>Einblendungstext<input name="overlay_text" value="{{ config.overlay.text }}" maxlength="160" placeholder="PiStreamer Live"></label>
-          <label>Text-Position
-            <select name="text_position">
-              <option value="top_left" {% if config.overlay.text_position == 'top_left' %}selected{% endif %}>Oben links</option>
-              <option value="top_right" {% if config.overlay.text_position == 'top_right' %}selected{% endif %}>Oben rechts</option>
-              <option value="bottom_left" {% if config.overlay.text_position == 'bottom_left' %}selected{% endif %}>Unten links</option>
-              <option value="bottom_right" {% if config.overlay.text_position == 'bottom_right' %}selected{% endif %}>Unten rechts</option>
-            </select>
-          </label>
+          <label>Text-Position<select name="text_position"><option value="top_left" {% if config.overlay.text_position == 'top_left' %}selected{% endif %}>Oben links</option><option value="top_right" {% if config.overlay.text_position == 'top_right' %}selected{% endif %}>Oben rechts</option><option value="bottom_left" {% if config.overlay.text_position == 'bottom_left' %}selected{% endif %}>Unten links</option><option value="bottom_right" {% if config.overlay.text_position == 'bottom_right' %}selected{% endif %}>Unten rechts</option></select></label>
           <label>Schriftgröße<input type="number" name="text_size" min="12" max="96" value="{{ config.overlay.text_size }}"></label>
-          <p class="field-hint">Änderungen werden beim nächsten Start oder Neustart des Streams übernommen.</p>
+        </article>
+
+        <article class="card option-card">
+          <div class="option-card__header"><div class="option-icon">⏸</div><div><h2>Pausenbild</h2><p class="muted">Standbild während einer laufenden Pause</p></div></div>
+          <label>Bilddatei<input name="pause_image_path" value="{{ config.pause_screen.image_path }}" placeholder="/opt/pistreamer/data/pause.png" required></label>
+          <p class="field-hint">Empfohlen: PNG oder JPG im Streamformat, zum Beispiel 1280 × 720 Pixel.</p>
         </article>
 
         <article class="card option-card">
@@ -118,7 +89,6 @@
       const current = select.dataset.current || select.value || fallback;
       const values = [...new Set([current, ...devices].filter(Boolean))];
       select.replaceChildren();
-
       for (const value of values) {
         const option = document.createElement("option");
         option.value = value;
@@ -133,31 +103,16 @@
       refreshButton.textContent = "Geräte werden gesucht …";
       videoStatus.textContent = "Kamerageräte werden gesucht …";
       audioStatus.textContent = "Audiogeräte werden gesucht …";
-
       try {
-        const response = await fetch("/api/devices", {
-          headers: {"Accept": "application/json"},
-          cache: "no-store"
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
+        const response = await fetch("/api/devices", {headers: {"Accept": "application/json"}, cache: "no-store"});
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const devices = await response.json();
         const videos = Array.isArray(devices.video) ? devices.video : [];
         const audio = Array.isArray(devices.audio) ? devices.audio : [];
-
         fillSelect(videoSelect, videos, "/dev/video0");
         fillSelect(audioSelect, audio, "default");
-
-        videoStatus.textContent = videos.length
-          ? `${videos.length} Kameragerät${videos.length === 1 ? "" : "e"} gefunden.`
-          : "Keine Kamera erkannt. Der bisherige Eintrag bleibt auswählbar.";
-
-        audioStatus.textContent = audio.length
-          ? `${audio.length} Audiogerät${audio.length === 1 ? "" : "e"} gefunden.`
-          : "Keine Audiogeräte erkannt. Prüfe, ob ALSA und arecord installiert sind.";
+        videoStatus.textContent = videos.length ? `${videos.length} Kameragerät${videos.length === 1 ? "" : "e"} gefunden.` : "Keine Kamera erkannt. Der bisherige Eintrag bleibt auswählbar.";
+        audioStatus.textContent = audio.length ? `${audio.length} Audiogerät${audio.length === 1 ? "" : "e"} gefunden.` : "Keine Audiogeräte erkannt. Prüfe, ob ALSA und arecord installiert sind.";
       } catch (error) {
         videoStatus.textContent = "Geräteerkennung fehlgeschlagen. Der gespeicherte Wert bleibt erhalten.";
         audioStatus.textContent = `Fehler beim Laden: ${error.message}`;
