@@ -7,7 +7,7 @@ import subprocess
 from functools import wraps
 
 import psutil
-from flask import Flask, Response, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
 from .config import load_config, save_config
 from .streamer import StreamManager
@@ -139,18 +139,31 @@ def settings():
     if request.method == "POST":
         s = config["stream"]
         w = config["web"]
+        overlay = config.setdefault("overlay", {})
+
         s["stream_key"] = request.form.get("stream_key", "").strip()
         s["video_device"] = request.form.get("video_device", "/dev/video0").strip()
         s["audio_device"] = request.form.get("audio_device", "default").strip()
         s["fps"] = int(request.form.get("fps", 30))
         s["video_bitrate"] = request.form.get("video_bitrate", "2500k").strip()
         s["autostart"] = request.form.get("autostart") == "on"
+
+        overlay["logo_enabled"] = request.form.get("logo_enabled") == "on"
+        overlay["logo_path"] = request.form.get("logo_path", "").strip()
+        overlay["logo_position"] = request.form.get("logo_position", "top_right")
+        overlay["logo_width_percent"] = max(5, min(50, int(request.form.get("logo_width_percent", 20))))
+        overlay["text_enabled"] = request.form.get("text_enabled") == "on"
+        overlay["text"] = request.form.get("overlay_text", "").strip()
+        overlay["text_position"] = request.form.get("text_position", "bottom_left")
+        overlay["text_size"] = max(12, min(96, int(request.form.get("text_size", 32))))
+
         new_password = request.form.get("password", "").strip()
         if new_password:
             w["password"] = new_password
         save_config(config)
         manager.config = config
         message = "Einstellungen gespeichert"
+
     masked = {**config, "stream": {**config["stream"], "stream_key": config["stream"].get("stream_key", "")}}
     return render_template("settings.html", config=masked, message=message)
 
