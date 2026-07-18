@@ -16,7 +16,7 @@ class StreamManager:
         self._lock = threading.Lock()
 
     @staticmethod
-    def _position(name: str, margin: int = 20) -> tuple[str, str]:
+    def _overlay_position(name: str, margin: int = 20) -> tuple[str, str]:
         positions = {
             "top_left": (str(margin), str(margin)),
             "top_right": (f"W-w-{margin}", str(margin)),
@@ -24,6 +24,16 @@ class StreamManager:
             "bottom_right": (f"W-w-{margin}", f"H-h-{margin}"),
         }
         return positions.get(name, positions["top_right"])
+
+    @staticmethod
+    def _text_position(name: str, margin: int = 20) -> tuple[str, str]:
+        positions = {
+            "top_left": (str(margin), str(margin)),
+            "top_right": (f"w-text_w-{margin}", str(margin)),
+            "bottom_left": (str(margin), f"h-text_h-{margin}"),
+            "bottom_right": (f"w-text_w-{margin}", f"h-text_h-{margin}"),
+        }
+        return positions.get(name, positions["bottom_left"])
 
     @staticmethod
     def _escape_drawtext(value: str) -> str:
@@ -66,7 +76,7 @@ class StreamManager:
 
         if logo_enabled:
             logo_width = max(32, int(int(s["width"]) * int(overlay.get("logo_width_percent", 20)) / 100))
-            x, y = self._position(str(overlay.get("logo_position", "top_right")))
+            x, y = self._overlay_position(str(overlay.get("logo_position", "top_right")))
             filters.append(f"[1:v]scale={logo_width}:-1[logo]")
             filters.append(f"{current_video}[logo]overlay={x}:{y}[withlogo]")
             current_video = "[withlogo]"
@@ -74,7 +84,7 @@ class StreamManager:
         text_enabled = bool(overlay.get("text_enabled")) and bool(str(overlay.get("text", "")).strip())
         if text_enabled:
             text = self._escape_drawtext(str(overlay.get("text", "")).strip())
-            x, y = self._position(str(overlay.get("text_position", "bottom_left")))
+            x, y = self._text_position(str(overlay.get("text_position", "bottom_left")))
             size = max(12, min(96, int(overlay.get("text_size", 32))))
             filters.append(
                 f"{current_video}drawtext=text='{text}':x={x}:y={y}:fontsize={size}:"
