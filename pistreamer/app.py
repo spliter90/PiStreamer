@@ -75,6 +75,7 @@ def temperature() -> float | None:
 def status():
     return jsonify({
         "streaming": manager.is_running(),
+        "paused": manager.paused,
         "uptime": manager.uptime(),
         "cpu": psutil.cpu_percent(interval=0.1),
         "ram": psutil.virtual_memory().percent,
@@ -89,6 +90,7 @@ def status():
 @api_auth_required
 def start():
     try:
+        manager.paused = False
         manager.start()
         return jsonify({"ok": True})
     except Exception as exc:
@@ -110,6 +112,28 @@ def restart():
         manager.restart()
         return jsonify({"ok": True})
     except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+@app.post("/api/pause")
+@api_auth_required
+def pause():
+    try:
+        manager.pause()
+        return jsonify({"ok": True})
+    except Exception as exc:
+        manager.logs.append(f"Pausenfehler: {exc}")
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+@app.post("/api/resume")
+@api_auth_required
+def resume():
+    try:
+        manager.resume()
+        return jsonify({"ok": True})
+    except Exception as exc:
+        manager.logs.append(f"Fortsetzen fehlgeschlagen: {exc}")
         return jsonify({"ok": False, "error": str(exc)}), 400
 
 
@@ -140,6 +164,7 @@ def settings():
         s = config["stream"]
         w = config["web"]
         overlay = config.setdefault("overlay", {})
+        pause_screen = config.setdefault("pause_screen", {})
 
         s["stream_key"] = request.form.get("stream_key", "").strip()
         s["video_device"] = request.form.get("video_device", "/dev/video0").strip()
@@ -156,6 +181,7 @@ def settings():
         overlay["text"] = request.form.get("overlay_text", "").strip()
         overlay["text_position"] = request.form.get("text_position", "bottom_left")
         overlay["text_size"] = max(12, min(96, int(request.form.get("text_size", 32))))
+        pause_screen["image_path"] = request.form.get("pause_image_path", "").strip()
 
         new_password = request.form.get("password", "").strip()
         if new_password:
