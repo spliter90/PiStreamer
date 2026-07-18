@@ -55,6 +55,43 @@
         </article>
 
         <article class="card option-card">
+          <div class="option-card__header"><div class="option-icon">🎨</div><div><h2>Einblendungen</h2><p class="muted">Logo und Text direkt in das Videobild einfügen</p></div></div>
+
+          <label class="toggle-row">
+            <span><strong>Logo anzeigen</strong><small>Transparente PNG-Dateien werden unterstützt</small></span>
+            <input type="checkbox" name="logo_enabled" {% if config.overlay.logo_enabled %}checked{% endif %}>
+          </label>
+          <label>Logo-Datei<input name="logo_path" value="{{ config.overlay.logo_path }}" placeholder="/opt/pistreamer/data/logo.png"></label>
+          <label>Logo-Position
+            <select name="logo_position">
+              <option value="top_left" {% if config.overlay.logo_position == 'top_left' %}selected{% endif %}>Oben links</option>
+              <option value="top_right" {% if config.overlay.logo_position == 'top_right' %}selected{% endif %}>Oben rechts</option>
+              <option value="bottom_left" {% if config.overlay.logo_position == 'bottom_left' %}selected{% endif %}>Unten links</option>
+              <option value="bottom_right" {% if config.overlay.logo_position == 'bottom_right' %}selected{% endif %}>Unten rechts</option>
+            </select>
+          </label>
+          <label>Logo-Breite in Prozent<input type="number" name="logo_width_percent" min="5" max="50" value="{{ config.overlay.logo_width_percent }}"></label>
+
+          <hr>
+
+          <label class="toggle-row">
+            <span><strong>Text anzeigen</strong><small>Weißer Text mit halbtransparentem Hintergrund</small></span>
+            <input type="checkbox" name="text_enabled" {% if config.overlay.text_enabled %}checked{% endif %}>
+          </label>
+          <label>Einblendungstext<input name="overlay_text" value="{{ config.overlay.text }}" maxlength="160" placeholder="PiStreamer Live"></label>
+          <label>Text-Position
+            <select name="text_position">
+              <option value="top_left" {% if config.overlay.text_position == 'top_left' %}selected{% endif %}>Oben links</option>
+              <option value="top_right" {% if config.overlay.text_position == 'top_right' %}selected{% endif %}>Oben rechts</option>
+              <option value="bottom_left" {% if config.overlay.text_position == 'bottom_left' %}selected{% endif %}>Unten links</option>
+              <option value="bottom_right" {% if config.overlay.text_position == 'bottom_right' %}selected{% endif %}>Unten rechts</option>
+            </select>
+          </label>
+          <label>Schriftgröße<input type="number" name="text_size" min="12" max="96" value="{{ config.overlay.text_size }}"></label>
+          <p class="field-hint">Änderungen werden beim nächsten Start oder Neustart des Streams übernommen.</p>
+        </article>
+
+        <article class="card option-card">
           <div class="option-card__header"><div class="option-icon">🚀</div><div><h2>Verhalten</h2><p class="muted">Automatischer Start des Streams</p></div></div>
           <label class="toggle-row"><span><strong>Autostart</strong><small>Stream nach dem Dienststart automatisch starten</small></span><input type="checkbox" name="autostart" {% if config.stream.autostart %}checked{% endif %}></label>
         </article>
