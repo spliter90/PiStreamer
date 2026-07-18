@@ -1,1 +1,64 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><title>Einstellungen</title></head><body><header><h1>Einstellungen</h1><nav><a href="/">Dashboard</a></nav></header><main><section class="card">{% if message %}<p class="success">{{ message }}</p>{% endif %}<form method="post"><label>YouTube Stream-Key<input type="password" name="stream_key" value="{{ config.stream.stream_key }}" required></label><label>Video-Gerät<input name="video_device" value="{{ config.stream.video_device }}" required></label><label>Audio-Gerät<input name="audio_device" value="{{ config.stream.audio_device }}" required></label><label>FPS<select name="fps"><option {% if config.stream.fps == 25 %}selected{% endif %}>25</option><option {% if config.stream.fps == 30 %}selected{% endif %}>30</option></select></label><label>Video-Bitrate<input name="video_bitrate" value="{{ config.stream.video_bitrate }}" required></label><label class="check"><input type="checkbox" name="autostart" {% if config.stream.autostart %}checked{% endif %}> Stream nach Dienststart automatisch starten</label><label>Neues Web-Passwort (leer = unverändert)<input type="password" name="password"></label><button type="submit">Speichern</button></form><p class="muted">Audio-Geräte anzeigen: <code>arecord -L</code> · Kameraformate: <code>v4l2-ctl --list-formats-ext -d /dev/video0</code></p></section></main></body></html>
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+  <title>Einstellungen · PiStreamer</title>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">Konfiguration</p>
+      <h1>Einstellungen</h1>
+    </div>
+    <nav><a href="/">← Dashboard</a></nav>
+  </header>
+
+  <main>
+    {% if message %}<div class="notice success">{{ message }}</div>{% endif %}
+
+    <form method="post" class="settings-form">
+      <section class="settings-grid">
+        <article class="card option-card">
+          <div class="option-card__header"><div class="option-icon">▶</div><div><h2>YouTube</h2><p class="muted">Zugangsdaten für den Livestream</p></div></div>
+          <label>Stream-Key<input type="password" name="stream_key" value="{{ config.stream.stream_key }}" placeholder="xxxx-xxxx-xxxx-xxxx" autocomplete="off" required></label>
+          <p class="field-hint">Der Stream-Key wird lokal in der PiStreamer-Konfiguration gespeichert.</p>
+        </article>
+
+        <article class="card option-card">
+          <div class="option-card__header"><div class="option-icon">📷</div><div><h2>Kamera</h2><p class="muted">Videoquelle und Bildrate</p></div></div>
+          <label>Video-Gerät<input name="video_device" value="{{ config.stream.video_device }}" placeholder="/dev/video0" required></label>
+          <label>Bilder pro Sekunde<select name="fps"><option value="25" {% if config.stream.fps == 25 %}selected{% endif %}>25 FPS</option><option value="30" {% if config.stream.fps == 30 %}selected{% endif %}>30 FPS</option></select></label>
+          <p class="field-hint">Geräte prüfen mit <code>v4l2-ctl --list-devices</code></p>
+        </article>
+
+        <article class="card option-card">
+          <div class="option-card__header"><div class="option-icon">🎤</div><div><h2>Audio</h2><p class="muted">Mikrofon oder Audioeingang</p></div></div>
+          <label>Audio-Gerät<input name="audio_device" value="{{ config.stream.audio_device }}" placeholder="default" required></label>
+          <p class="field-hint">Audiogeräte anzeigen mit <code>arecord -L</code></p>
+        </article>
+
+        <article class="card option-card">
+          <div class="option-card__header"><div class="option-icon">⚙</div><div><h2>Qualität</h2><p class="muted">Video-Bitrate des Streams</p></div></div>
+          <label>Video-Bitrate<input name="video_bitrate" value="{{ config.stream.video_bitrate }}" placeholder="2500k" required></label>
+          <p class="field-hint">Für 720p sind etwa <code>2500k</code> bis <code>4000k</code> ein sinnvoller Startwert.</p>
+        </article>
+
+        <article class="card option-card">
+          <div class="option-card__header"><div class="option-icon">🚀</div><div><h2>Verhalten</h2><p class="muted">Automatischer Start des Streams</p></div></div>
+          <label class="toggle-row"><span><strong>Autostart</strong><small>Stream nach dem Dienststart automatisch starten</small></span><input type="checkbox" name="autostart" {% if config.stream.autostart %}checked{% endif %}></label>
+        </article>
+
+        <article class="card option-card">
+          <div class="option-card__header"><div class="option-icon">🔒</div><div><h2>Sicherheit</h2><p class="muted">Zugang zum Webinterface</p></div></div>
+          <label>Neues Web-Passwort<input type="password" name="password" placeholder="Leer lassen, um es nicht zu ändern" autocomplete="new-password"></label>
+          <p class="field-hint">Ein leeres Feld lässt das bisherige Passwort unverändert.</p>
+        </article>
+      </section>
+
+      <section class="settings-actions"><a class="button secondary-button" href="/">Abbrechen</a><button type="submit">Einstellungen speichern</button></section>
+    </form>
+  </main>
+</body>
+</html>
