@@ -26,17 +26,26 @@
           <p class="field-hint">Der Stream-Key wird lokal in der PiStreamer-Konfiguration gespeichert.</p>
         </article>
 
-        <article class="card option-card">
+        <article class="card option-card" id="video-card">
           <div class="option-card__header"><div class="option-icon">📷</div><div><h2>Kamera</h2><p class="muted">Videoquelle und Bildrate</p></div></div>
-          <label>Video-Gerät<input name="video_device" value="{{ config.stream.video_device }}" placeholder="/dev/video0" required></label>
+          <label>Video-Gerät
+            <select id="video-device" name="video_device" data-current="{{ config.stream.video_device }}" required>
+              <option value="{{ config.stream.video_device }}">{{ config.stream.video_device }}</option>
+            </select>
+          </label>
           <label>Bilder pro Sekunde<select name="fps"><option value="25" {% if config.stream.fps == 25 %}selected{% endif %}>25 FPS</option><option value="30" {% if config.stream.fps == 30 %}selected{% endif %}>30 FPS</option></select></label>
-          <p class="field-hint">Geräte prüfen mit <code>v4l2-ctl --list-devices</code></p>
+          <p class="field-hint" id="video-status">Kamerageräte werden gesucht …</p>
         </article>
 
-        <article class="card option-card">
+        <article class="card option-card" id="audio-card">
           <div class="option-card__header"><div class="option-icon">🎤</div><div><h2>Audio</h2><p class="muted">Mikrofon oder Audioeingang</p></div></div>
-          <label>Audio-Gerät<input name="audio_device" value="{{ config.stream.audio_device }}" placeholder="default" required></label>
-          <p class="field-hint">Audiogeräte anzeigen mit <code>arecord -L</code></p>
+          <label>Audio-Gerät
+            <select id="audio-device" name="audio_device" data-current="{{ config.stream.audio_device }}" required>
+              <option value="{{ config.stream.audio_device }}">{{ config.stream.audio_device }}</option>
+            </select>
+          </label>
+          <p class="field-hint" id="audio-status">Audiogeräte werden gesucht …</p>
+          <button type="button" class="secondary" id="refresh-devices">↻ Geräte neu suchen</button>
         </article>
 
         <article class="card option-card">
@@ -60,5 +69,69 @@
       <section class="settings-actions"><a class="button secondary-button" href="/">Abbrechen</a><button type="submit">Einstellungen speichern</button></section>
     </form>
   </main>
+
+  <script>
+    const videoSelect = document.getElementById("video-device");
+    const audioSelect = document.getElementById("audio-device");
+    const videoStatus = document.getElementById("video-status");
+    const audioStatus = document.getElementById("audio-status");
+    const refreshButton = document.getElementById("refresh-devices");
+
+    function fillSelect(select, devices, fallback) {
+      const current = select.dataset.current || select.value || fallback;
+      const values = [...new Set([current, ...devices].filter(Boolean))];
+      select.replaceChildren();
+
+      for (const value of values) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        option.selected = value === current;
+        select.appendChild(option);
+      }
+    }
+
+    async function loadDevices() {
+      refreshButton.disabled = true;
+      refreshButton.textContent = "Geräte werden gesucht …";
+      videoStatus.textContent = "Kamerageräte werden gesucht …";
+      audioStatus.textContent = "Audiogeräte werden gesucht …";
+
+      try {
+        const response = await fetch("/api/devices", {
+          headers: {"Accept": "application/json"},
+          cache: "no-store"
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const devices = await response.json();
+        const videos = Array.isArray(devices.video) ? devices.video : [];
+        const audio = Array.isArray(devices.audio) ? devices.audio : [];
+
+        fillSelect(videoSelect, videos, "/dev/video0");
+        fillSelect(audioSelect, audio, "default");
+
+        videoStatus.textContent = videos.length
+          ? `${videos.length} Kameragerät${videos.length === 1 ? "" : "e"} gefunden.`
+          : "Keine Kamera erkannt. Der bisherige Eintrag bleibt auswählbar.";
+
+        audioStatus.textContent = audio.length
+          ? `${audio.length} Audiogerät${audio.length === 1 ? "" : "e"} gefunden.`
+          : "Keine Audiogeräte erkannt. Prüfe, ob ALSA und arecord installiert sind.";
+      } catch (error) {
+        videoStatus.textContent = "Geräteerkennung fehlgeschlagen. Der gespeicherte Wert bleibt erhalten.";
+        audioStatus.textContent = `Fehler beim Laden: ${error.message}`;
+      } finally {
+        refreshButton.disabled = false;
+        refreshButton.textContent = "↻ Geräte neu suchen";
+      }
+    }
+
+    refreshButton.addEventListener("click", loadDevices);
+    loadDevices();
+  </script>
 </body>
 </html>
