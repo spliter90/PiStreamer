@@ -18,13 +18,23 @@ DEFAULT_CONFIG = {
         "audio_bitrate": "128k",
         "autostart": False,
     },
+    "overlay": {
+        "logo_enabled": False,
+        "logo_path": "/opt/pistreamer/data/logo.png",
+        "logo_position": "top_right",
+        "logo_width_percent": 20,
+        "text_enabled": False,
+        "text": "PiStreamer Live",
+        "text_position": "bottom_left",
+        "text_size": 32,
+    },
 }
 
 CONFIG_PATH = Path(os.environ.get("PISTREAMER_CONFIG", "/etc/pistreamer/config.yaml"))
 
 
 def load_config() -> dict:
-    data = DEFAULT_CONFIG.copy()
+    data = {section: values.copy() if isinstance(values, dict) else values for section, values in DEFAULT_CONFIG.items()}
     if CONFIG_PATH.exists():
         with CONFIG_PATH.open("r", encoding="utf-8") as fh:
             loaded = yaml.safe_load(fh) or {}
