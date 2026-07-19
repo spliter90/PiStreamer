@@ -2,6 +2,8 @@
 
 PiStreamer macht aus einem Raspberry Pi mit USB-Webcam eine über das Handy oder den Browser bedienbare YouTube-Live-Streaming-Box.
 
+> **Projektstatus:** Frühe Entwicklungsversion. Vor dem produktiven Einsatz sollten Kamera, Audio, Stream-Stabilität und thermische Belastung auf der eigenen Hardware getestet werden.
+
 ## Funktionen
 
 - YouTube-Streaming per FFmpeg
@@ -236,6 +238,12 @@ Das Webinterface ist für das lokale Netzwerk gedacht. Port 8080 sollte nicht di
 
 Der YouTube-Stream-Key wird lokal in `/etc/pistreamer/config.yaml` gespeichert. Die Datei ist nur für `root` und die PiStreamer-Benutzergruppe lesbar.
 
+Sicherheitsprobleme bitte nach den Hinweisen in [SECURITY.md](SECURITY.md) melden. Stream-Keys, Passwörter und vollständige Konfigurationsdateien dürfen nicht in öffentlichen Issues veröffentlicht werden.
+
+## Mitwirken
+
+Fehlerberichte und Beiträge sind willkommen. Hinweise zu Issues, Pull Requests und dem Umgang mit Logs stehen in [CONTRIBUTING.md](CONTRIBUTING.md). Änderungen werden in [CHANGELOG.md](CHANGELOG.md) dokumentiert.
+
 ## Deinstallation
 
 Im ursprünglichen Repository:
@@ -243,3 +251,9 @@ Im ursprünglichen Repository:
 ```bash
 sudo ./uninstall.sh
 ```
+
+## Lizenz
+
+PiStreamer ist unter der [MIT-Lizenz](LICENSE) veröffentlicht.
+
+Copyright © 2026 Chris X.
