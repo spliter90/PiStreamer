@@ -1,0 +1,50 @@
+name: Fehlerbericht
+description: Einen reproduzierbaren Fehler in PiStreamer melden
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für die Meldung. Entferne bitte Stream-Keys, Passwörter und andere Zugangsdaten aus allen Angaben und Logs.
+  - type: input
+    id: pi_model
+    attributes:
+      label: Raspberry-Pi-Modell
+      placeholder: Raspberry Pi 5, 4 GB
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Betriebssystem
+      placeholder: Raspberry Pi OS Lite 64-Bit, Debian 13
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Kamera und Audiohardware
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte zum Reproduzieren
+      description: Beschreibe möglichst genau, wie der Fehler ausgelöst werden kann.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Erwartetes Verhalten
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Tatsächliches Verhalten und Logs
+      description: Relevante Ausgabe aus `sudo journalctl -u pistreamer -n 100 --no-pager`; Zugangsdaten vorher entfernen.
+    validations:
+      required: true
