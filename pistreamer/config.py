@@ -7,7 +7,10 @@ import yaml
 DEFAULT_CONFIG = {
     "web": {"host": "0.0.0.0", "port": 8080, "username": "admin", "password": "change-me"},
     "stream": {
+        "platform": "youtube",
         "youtube_url": "rtmp://a.rtmp.youtube.com/live2",
+        "twitch_url": "rtmp://live.twitch.tv/app",
+        "custom_url": "",
         "stream_key": "",
         "video_device": "/dev/video0",
         "audio_device": "default",
@@ -46,6 +49,12 @@ def load_config() -> dict:
                 data[section] = {**data[section], **values}
             else:
                 data[section] = values
+
+    # Existing installations only had youtube_url and stream_key. They continue
+    # to use YouTube unless a platform was explicitly selected later.
+    stream = data.setdefault("stream", {})
+    if stream.get("platform") not in {"youtube", "twitch", "custom"}:
+        stream["platform"] = "youtube"
     return data
 
 
