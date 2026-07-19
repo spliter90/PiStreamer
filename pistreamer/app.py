@@ -4,6 +4,7 @@ import hmac
 import os
 import socket
 import subprocess
+from datetime import timedelta
 from functools import wraps
 
 import psutil
@@ -15,6 +16,8 @@ from .streamer import StreamManager
 config = load_config()
 app = Flask(__name__)
 app.secret_key = os.environ.get("PISTREAMER_SECRET", os.urandom(32))
+app.permanent_session_lifetime = timedelta(hours=8)
+app.config["SESSION_REFRESH_EACH_REQUEST"] = True
 manager = StreamManager(config)
 
 
@@ -44,6 +47,8 @@ def login():
         ok_user = hmac.compare_digest(request.form.get("username", ""), str(web["username"]))
         ok_pass = hmac.compare_digest(request.form.get("password", ""), str(web["password"]))
         if ok_user and ok_pass:
+            session.clear()
+            session.permanent = True
             session["authenticated"] = True
             return redirect(url_for("index"))
         error = "Anmeldung fehlgeschlagen"
