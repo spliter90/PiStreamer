@@ -15,6 +15,7 @@ class StreamManager:
         self.paused = False
         self.logs: deque[str] = deque(maxlen=300)
         self._lock = threading.Lock()
+        self._manual_stop = False
 
     @staticmethod
     def _overlay_position(name: str, margin: int = 20) -> tuple[str, str]:
@@ -58,7 +59,6 @@ class StreamManager:
         }
         if platform not in urls:
             raise ValueError("Unbekannte Streaming-Plattform")
-
         server_url = urls[platform].strip()
         stream_key = str(stream.get("stream_key", "")).strip()
         if not server_url:
@@ -68,6 +68,39 @@ class StreamManager:
         if not stream_key:
             raise ValueError(f"{labels[platform]}-Stream-Key fehlt")
         return labels[platform], f"{server_url.rstrip('/')}/{stream_key.lstrip('/')}"
+
+    def _clean_recordings(self, directory: Path, max_storage_gb: int) -> None:
+        limit = max_storage_gb * 1024 * 1024 * 1024
+        files = sorted((p for p in directory.glob("*.mkv") if p.is_file()), key=lambda p: p.stat().st_mtime)
+        total = sum(p.stat().st_size for p in files)
+        for path in files:
+            if total <= limit:
+                break
+            try:
+                size = path.stat().st_size
+                path.unlink()
+                total -= size
+                self.logs.append(f"Alte Aufnahme gelöscht: {path.name}")
+            except OSError as exc:
+                self.logs.append(f"Aufnahme konnte nicht gelöscht werden: {exc}")
+
+    def _output_args(self, target: str) -> list[str]:
+        recording = self.config.get("recording", {})
+        if not recording.get("enabled"):
+            return ["-f", "flv", target]
+
+        directory = Path(str(recording.get("path", "/opt/pistreamer/data/recordings"))).expanduser()
+        directory.mkdir(parents=True, exist_ok=True)
+        if recording.get("delete_oldest", True):
+            self._clean_recordings(directory, max(1, int(recording.get("max_storage_gb", 20))))
+        segment_seconds = max(10, int(recording.get("segment_seconds", 60)))
+        filename = directory / "pistreamer-%Y%m%d-%H%M%S.mkv"
+        tee = (
+            f"[f=flv:onfail=ignore]{target}|"
+            f"[f=segment:segment_time={segment_seconds}:reset_timestamps=1:strftime=1:onfail=ignore]{filename}"
+        )
+        self.logs.append(f"Sicherheitsaufnahme aktiv: {directory}")
+        return ["-f", "tee", tee]
 
     def _command(self) -> list[str]:
         s = self.config["stream"]
@@ -88,79 +121,83 @@ class StreamManager:
         else:
             cmd += [
                 "-f", "v4l2", "-framerate", str(s["fps"]),
-                "-video_size", f"{s['width']}x{s['height']}",
-                "-i", s["video_device"],
+                "-video_size", f"{s['width']}x{s['height']}", "-i", s["video_device"],
             ]
-
             logo_enabled = bool(overlay.get("logo_enabled"))
             logo_path = Path(str(overlay.get("logo_path", ""))).expanduser()
             if logo_enabled:
                 if not logo_path.is_file():
                     raise ValueError(f"Logo-Datei nicht gefunden: {logo_path}")
                 cmd += ["-loop", "1", "-i", str(logo_path)]
-
             audio_input_index = 2 if logo_enabled else 1
             cmd += ["-f", "alsa", "-i", s["audio_device"]]
-
             filters: list[str] = []
             current_video = "[0:v]"
             output_label = "vout"
-
             if logo_enabled:
                 logo_width = max(32, int(int(s["width"]) * int(overlay.get("logo_width_percent", 20)) / 100))
                 x, y = self._overlay_position(str(overlay.get("logo_position", "top_right")))
                 filters.append(f"[1:v]scale={logo_width}:-1[logo]")
                 filters.append(f"{current_video}[logo]overlay={x}:{y}[withlogo]")
                 current_video = "[withlogo]"
-
             text_enabled = bool(overlay.get("text_enabled")) and bool(str(overlay.get("text", "")).strip())
             if text_enabled:
                 text = self._escape_drawtext(str(overlay.get("text", "")).strip())
                 x, y = self._text_position(str(overlay.get("text_position", "bottom_left")))
                 size = max(12, min(96, int(overlay.get("text_size", 32))))
-                filters.append(
-                    f"{current_video}drawtext=text='{text}':x={x}:y={y}:fontsize={size}:"
-                    "fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=10"
-                    f"[{output_label}]"
-                )
+                filters.append(f"{current_video}drawtext=text='{text}':x={x}:y={y}:fontsize={size}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=10[{output_label}]")
             elif logo_enabled:
                 filters.append(f"{current_video}null[{output_label}]")
-
             if filters:
                 cmd += ["-filter_complex", ";".join(filters), "-map", f"[{output_label}]", "-map", f"{audio_input_index}:a:0"]
+            else:
+                cmd += ["-map", "0:v:0", "-map", "1:a:0"]
 
+        bitrate = str(s.get("video_bitrate", "2500k"))
+        maxrate = str(s.get("maxrate", bitrate))
+        buffer_size = str(s.get("buffer_size", "5000k"))
         cmd += [
             "-c:v", "libx264", "-preset", "veryfast", "-tune", "zerolatency",
-            "-b:v", s["video_bitrate"], "-maxrate", s["video_bitrate"],
-            "-bufsize", "5000k", "-pix_fmt", "yuv420p",
+            "-b:v", bitrate, "-maxrate", maxrate, "-bufsize", buffer_size, "-pix_fmt", "yuv420p",
             "-g", str(int(s["fps"]) * 2), "-keyint_min", str(int(s["fps"]) * 2),
-            "-c:a", "aac", "-b:a", s["audio_bitrate"], "-ar", "44100",
-            "-shortest", "-f", "flv", target,
+            "-c:a", "aac", "-b:a", s["audio_bitrate"], "-ar", "44100", "-shortest",
         ]
+        cmd += self._output_args(target)
         self.logs.append(f"Streaming-Ziel: {platform_label}")
+        if s.get("mobile_mode"):
+            self.logs.append(f"Mobilfunk-Modus aktiv: {bitrate}, Puffer {buffer_size}")
         return cmd
 
     def start(self) -> None:
         with self._lock:
             if self.is_running():
                 return
+            self._manual_stop = False
             cmd = self._command()
             self.logs.append("Starte Pausenbild …" if self.paused else "Starte FFmpeg …")
-            self.process = subprocess.Popen(
-                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                text=True, bufsize=1,
-            )
+            self.process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, bufsize=1)
             self.started_at = time.time()
-            threading.Thread(target=self._read_logs, daemon=True).start()
+            threading.Thread(target=self._read_logs, args=(self.process,), daemon=True).start()
 
-    def _read_logs(self) -> None:
-        proc = self.process
-        if not proc or not proc.stderr:
+    def _read_logs(self, proc: subprocess.Popen[str]) -> None:
+        if not proc.stderr:
             return
         for line in proc.stderr:
             self.logs.append(line.rstrip())
         code = proc.wait()
         self.logs.append(f"FFmpeg beendet (Code {code})")
+        if self.process is proc:
+            self.started_at = None
+        stream = self.config.get("stream", {})
+        if not self._manual_stop and stream.get("reconnect_enabled", True):
+            delay = max(1, int(stream.get("reconnect_delay", 3)))
+            self.logs.append(f"Neuer Verbindungsversuch in {delay} Sekunden …")
+            time.sleep(delay)
+            if not self._manual_stop and not self.is_running():
+                try:
+                    self.start()
+                except Exception as exc:
+                    self.logs.append(f"Wiederverbindung fehlgeschlagen: {exc}")
 
     def _stop_process(self) -> None:
         if not self.is_running():
@@ -174,12 +211,14 @@ class StreamManager:
         self.started_at = None
 
     def stop(self) -> None:
+        self._manual_stop = True
         with self._lock:
             self._stop_process()
             self.paused = False
             self.logs.append("Stream gestoppt")
 
     def restart(self) -> None:
+        self._manual_stop = True
         with self._lock:
             self._stop_process()
         time.sleep(1)
