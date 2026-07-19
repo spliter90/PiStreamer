@@ -88,12 +88,18 @@ sudo -u "$APP_USER" "$INSTALL_DIR/.venv/bin/python" -m pip install -r "$INSTALL_
 ok "Python-Abhängigkeiten installiert"
 
 log "Konfiguration einrichten"
+# Setgid sorgt dafür, dass neu angelegte temporäre Konfigurationsdateien
+# automatisch die PiStreamer-Gruppe erben. Gruppenmitglieder dürfen die
+# Datei atomar ersetzen, wie es save_config() benötigt.
+chown root:"$APP_GROUP" "$CONFIG_DIR"
+chmod 2770 "$CONFIG_DIR"
+
 if [[ ! -f "$CONFIG_FILE" ]]; then
-  install -m 0640 -o root -g "$APP_GROUP" "$INSTALL_DIR/config/config.example.yaml" "$CONFIG_FILE"
+  install -m 0660 -o root -g "$APP_GROUP" "$INSTALL_DIR/config/config.example.yaml" "$CONFIG_FILE"
   ok "Neue Konfiguration angelegt"
 else
   chown root:"$APP_GROUP" "$CONFIG_FILE"
-  chmod 0640 "$CONFIG_FILE"
+  chmod 0660 "$CONFIG_FILE"
   ok "Vorhandene Konfiguration beibehalten"
 fi
 usermod -aG video,audio "$APP_USER"
