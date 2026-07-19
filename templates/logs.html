@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+  <title>Logs · PiStreamer</title>
+  <style>
+    .log-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}.log-tabs button.active{font-weight:700}.log-box{background:#0b1020;color:#dbeafe;padding:1rem;border-radius:.75rem;min-height:28rem;max-height:65vh;overflow:auto;white-space:pre-wrap;font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}.clock-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1rem}.clock-grid strong{display:block;font-size:1.05rem;margin-top:.25rem}
+  </style>
+</head>
+<body>
+<header>
+  <div><p class="eyebrow">Diagnose</p><h1>Server- und Stream-Logs</h1></div>
+  <nav><a href="/">← Dashboard</a> · <a href="/settings-menu">Einstellungen</a></nav>
+</header>
+<main>
+  <section class="card clock-grid">
+    <div><span class="muted">PiStreamer-Zeit</span><strong id="local-time">{{ clock.local_time }}</strong></div>
+    <div><span class="muted">Konfigurierte Zeitzone</span><strong id="timezone">{{ clock.timezone }}</strong></div>
+    <div><span class="muted">System-Zeitzone</span><strong id="system-timezone">{{ clock.system_timezone or 'unbekannt' }}</strong></div>
+    <div><span class="muted">NTP synchronisiert</span><strong id="ntp">{% if clock.ntp_synchronized is sameas true %}Ja{% elif clock.ntp_synchronized is sameas false %}Nein{% else %}unbekannt{% endif %}</strong></div>
+  </section>
+
+  <section class="card">
+    <div class="log-tabs">
+      <button type="button" id="tab-server" class="active">Server / Flask</button>
+      <button type="button" id="tab-ffmpeg">FFmpeg / Stream</button>
+      <button type="button" id="refresh">Aktualisieren</button>
+    </div>
+    <p class="muted" id="description">Anwendungsfehler, HTTP-Aufrufe, Startprobleme und Python-Ausnahmen.</p>
+    <div id="log-box" class="log-box">Logs werden geladen …</div>
+  </section>
+</main>
+<script>
+let source='server';
+const box=document.getElementById('log-box');
+async function loadLogs(){
+  const url=source==='server'?'/api/server-logs?limit=500':'/api/logs';
+  try{
+    const response=await fetch(url,{cache:'no-store'});
+    const data=await response.json();
+    box.textContent=(data.lines||[]).join('\n')||'Keine Logeinträge vorhanden.';
+    box.scrollTop=box.scrollHeight;
+    if(data.clock){
+      document.getElementById('local-time').textContent=data.clock.local_time||'unbekannt';
+      document.getElementById('timezone').textContent=data.clock.timezone||'unbekannt';
+      document.getElementById('system-timezone').textContent=data.clock.system_timezone||'unbekannt';
+      document.getElementById('ntp').textContent=data.clock.ntp_synchronized===true?'Ja':data.clock.ntp_synchronized===false?'Nein':'unbekannt';
+    }
+  }catch(error){box.textContent='Logs konnten nicht geladen werden: '+error;}
+}
+function select(next){
+  source=next;
+  document.getElementById('tab-server').classList.toggle('active',source==='server');
+  document.getElementById('tab-ffmpeg').classList.toggle('active',source==='ffmpeg');
+  document.getElementById('description').textContent=source==='server'?'Anwendungsfehler, HTTP-Aufrufe, Startprobleme und Python-Ausnahmen.':'Direkte Ausgabe des laufenden FFmpeg-Prozesses.';
+  loadLogs();
+}
+document.getElementById('tab-server').onclick=()=>select('server');
+document.getElementById('tab-ffmpeg').onclick=()=>select('ffmpeg');
+document.getElementById('refresh').onclick=loadLogs;
+loadLogs();
+setInterval(loadLogs,5000);
+</script>
+</body>
+</html>
