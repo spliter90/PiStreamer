@@ -18,7 +18,7 @@ PiStreamer Installer
 
 Verwendung:
   sudo ./install.sh             Installation oder erneute Einrichtung
-  sudo ./install.sh --update    Repository aktualisieren und Dienst neu starten
+  sudo ./install.sh --update    Neueste Version installieren und Dienst neu starten
   sudo ./install.sh --help      Hilfe anzeigen
 USAGE
 }
@@ -53,14 +53,14 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
   v4l-utils alsa-utils avahi-daemon
 ok "Systempakete sind vorhanden"
 
-if [[ "$MODE" == "update" && -d "$INSTALL_DIR/.git" ]]; then
-  log "PiStreamer-Repository aktualisieren"
-  sudo -u "$APP_USER" git -C "$INSTALL_DIR" pull --ff-only
-  SOURCE_DIR="$INSTALL_DIR"
-elif [[ -f "$SCRIPT_DIR/run.py" && -f "$SCRIPT_DIR/requirements.txt" ]]; then
+if [[ "$MODE" == "update" && -d "$SCRIPT_DIR/.git" ]]; then
+  log "Lokalen PiStreamer-Klon aktualisieren"
+  sudo -u "$APP_USER" git -C "$SCRIPT_DIR" pull --ff-only
+  SOURCE_DIR="$SCRIPT_DIR"
+elif [[ "$MODE" == "install" && -f "$SCRIPT_DIR/run.py" && -f "$SCRIPT_DIR/requirements.txt" ]]; then
   SOURCE_DIR="$SCRIPT_DIR"
 else
-  log "PiStreamer herunterladen"
+  log "Neueste PiStreamer-Version herunterladen"
   TMP_DIR="$(mktemp -d)"
   trap 'rm -rf "${TMP_DIR:-}"' EXIT
   git clone --depth 1 "$REPO_URL" "$TMP_DIR/PiStreamer"
