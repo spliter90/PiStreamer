@@ -4,7 +4,10 @@ web:
   username: admin
   password: change-me
 stream:
+  platform: youtube
   youtube_url: rtmp://a.rtmp.youtube.com/live2
+  twitch_url: rtmp://live.twitch.tv/app
+  custom_url: ""
   stream_key: ""
   video_device: /dev/video0
   audio_device: default
