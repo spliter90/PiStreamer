@@ -50,7 +50,7 @@ log "Systempakete installieren"
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
   ca-certificates curl git rsync ffmpeg python3 python3-venv \
-  v4l-utils alsa-utils avahi-daemon
+  v4l-utils alsa-utils avahi-daemon network-manager
 ok "Systempakete sind vorhanden"
 
 if [[ "$MODE" == "update" && -d "$SCRIPT_DIR/.git" ]]; then
@@ -88,9 +88,6 @@ sudo -u "$APP_USER" "$INSTALL_DIR/.venv/bin/python" -m pip install -r "$INSTALL_
 ok "Python-Abhängigkeiten installiert"
 
 log "Konfiguration einrichten"
-# Setgid sorgt dafür, dass neu angelegte temporäre Konfigurationsdateien
-# automatisch die PiStreamer-Gruppe erben. Gruppenmitglieder dürfen die
-# Datei atomar ersetzen, wie es save_config() benötigt.
 chown root:"$APP_GROUP" "$CONFIG_DIR"
 chmod 2770 "$CONFIG_DIR"
 
@@ -110,8 +107,9 @@ sed \
   -e "s/__GROUP__/$APP_GROUP/g" \
   "$INSTALL_DIR/systemd/pistreamer.service" > "$SERVICE_FILE"
 systemctl daemon-reload
-systemctl enable avahi-daemon pistreamer.service >/dev/null
+systemctl enable avahi-daemon NetworkManager pistreamer.service >/dev/null
 systemctl restart avahi-daemon
+systemctl restart NetworkManager
 systemctl restart pistreamer.service
 
 if ! systemctl is-active --quiet pistreamer.service; then
@@ -127,6 +125,6 @@ printf '========================================\n\n'
 printf 'Webinterface: http://pistreamer.local:8080\n'
 printf 'Alternativ:   http://%s:8080\n' "${IP:-PI-IP}"
 printf 'Login:        admin / change-me\n\n'
-printf 'Wichtig: Passwort und YouTube-Stream-Key direkt ändern.\n'
+printf 'Wichtig: Passwort und Stream-Key direkt ändern.\n'
 printf 'Status: sudo systemctl status pistreamer\n'
 printf 'Logs:   sudo journalctl -u pistreamer -f\n'
