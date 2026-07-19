@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=__USER__
-Group=__USER__
+Group=__GROUP__
 SupplementaryGroups=video audio
 WorkingDirectory=/opt/pistreamer
 Environment=PISTREAMER_CONFIG=/etc/pistreamer/config.yaml
