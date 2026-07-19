@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+  <title>Netzwerk · PiStreamer</title>
+</head>
+<body>
+<header>
+  <div><p class="eyebrow">Einstellungen</p><h1>Netzwerk & WLAN</h1></div>
+  <nav><a href="/settings-menu">← Einstellungen</a><a href="/">Dashboard</a></nav>
+</header>
+<main>
+  {% if message %}<div class="notice success">{{ message }}</div>{% endif %}
+  {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
+
+  <section class="settings-grid">
+    <article class="card option-card">
+      <div class="option-card__header"><div class="option-icon">📶</div><div><h2>Aktuelle Verbindung</h2><p class="muted">Status des WLAN-Adapters</p></div></div>
+      <p><strong>Gerät:</strong> {{ status.device or 'nicht erkannt' }}</p>
+      <p><strong>Status:</strong> {{ status.state }}</p>
+      <p><strong>SSID:</strong> {{ status.ssid or '–' }}</p>
+      <p><strong>IP-Adresse:</strong> {{ status.ip or '–' }}</p>
+      {% if status.error %}<p class="field-hint">{{ status.error }}</p>{% endif %}
+      <div class="actions">
+        <form method="post"><input type="hidden" name="action" value="wifi_on"><button type="submit" class="secondary">WLAN einschalten</button></form>
+        <form method="post"><input type="hidden" name="action" value="wifi_off"><button type="submit" class="danger" onclick="return confirm('WLAN wirklich ausschalten? Das Webinterface kann sofort nicht mehr erreichbar sein.')">WLAN ausschalten</button></form>
+        {% if status.device %}<form method="post"><input type="hidden" name="action" value="disconnect"><input type="hidden" name="device" value="{{ status.device }}"><button type="submit" class="danger" onclick="return confirm('WLAN trennen? Das Webinterface kann danach nicht mehr erreichbar sein.')">Verbindung trennen</button></form>{% endif %}
+      </div>
+    </article>
+
+    <article class="card option-card">
+      <div class="option-card__header"><div class="option-icon">➕</div><div><h2>Mit WLAN verbinden</h2><p class="muted">SSID und Passwort manuell eingeben</p></div></div>
+      <form method="post">
+        <input type="hidden" name="action" value="connect">
+        <label>WLAN-Name (SSID)<input name="ssid" maxlength="32" required autocomplete="off"></label>
+        <label>WLAN-Passwort<input type="password" name="password" minlength="8" maxlength="63" autocomplete="new-password"></label>
+        <p class="field-hint">Bei offenen Netzen das Passwort leer lassen. Beim Wechsel kann sich die IP-Adresse ändern.</p>
+        <button type="submit">Verbinden</button>
+      </form>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="option-card__header"><div class="option-icon">🔎</div><div><h2>Gefundene WLANs</h2><p class="muted">Die Liste wird beim Öffnen der Seite neu eingelesen</p></div></div>
+    {% if networks %}
+      <div class="network-list">
+      {% for network in networks %}
+        <div class="network-row">
+          <div><strong>{% if network.active %}● {% endif %}{{ network.ssid }}</strong><div class="muted">Signal {{ network.signal }} % · {{ network.security }}</div></div>
+          <form method="post">
+            <input type="hidden" name="action" value="connect">
+            <input type="hidden" name="ssid" value="{{ network.ssid }}">
+            {% if network.security != 'Offen' and not network.active %}<input type="password" name="password" minlength="8" maxlength="63" placeholder="Passwort" required>{% endif %}
+            {% if not network.active %}<button type="submit" class="secondary">Verbinden</button>{% endif %}
+          </form>
+        </div>
+      {% endfor %}
+      </div>
+    {% else %}<p class="muted">Keine WLANs gefunden.</p>{% endif %}
+  </section>
+
+  <section class="card">
+    <div class="option-card__header"><div class="option-icon">💾</div><div><h2>Gespeicherte Netzwerke</h2><p class="muted">Bereits auf dem Raspberry Pi bekannte WLAN-Profile</p></div></div>
+    {% if saved %}
+      <div class="network-list">
+      {% for name in saved %}
+        <div class="network-row">
+          <strong>{{ name }}</strong>
+          <div class="actions">
+            <form method="post"><input type="hidden" name="action" value="activate"><input type="hidden" name="name" value="{{ name }}"><button type="submit" class="secondary">Aktivieren</button></form>
+            <form method="post"><input type="hidden" name="action" value="forget"><input type="hidden" name="name" value="{{ name }}"><button type="submit" class="danger" onclick="return confirm('Gespeichertes Netzwerk wirklich entfernen?')">Entfernen</button></form>
+          </div>
+        </div>
+      {% endfor %}
+      </div>
+    {% else %}<p class="muted">Keine gespeicherten WLAN-Profile gefunden.</p>{% endif %}
+  </section>
+</main>
+</body>
+</html>
