@@ -6,6 +6,9 @@ INSTALL_DIR="/opt/pistreamer"
 CONFIG_DIR="/etc/pistreamer"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
 SERVICE_FILE="/etc/systemd/system/pistreamer.service"
+UPDATE_SERVICE_FILE="/etc/systemd/system/pistreamer-update.service"
+UPDATE_PATH_FILE="/etc/systemd/system/pistreamer-update.path"
+RUNTIME_DIR="/run/pistreamer"
 MODE="install"
 
 log() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
@@ -55,7 +58,7 @@ ok "Systempakete sind vorhanden"
 
 if [[ "$MODE" == "update" && -d "$SCRIPT_DIR/.git" ]]; then
   log "Lokalen PiStreamer-Klon aktualisieren"
-  sudo -u "$APP_USER" git -C "$SCRIPT_DIR" pull --ff-only
+  runuser -u "$APP_USER" -- git -C "$SCRIPT_DIR" pull --ff-only
   SOURCE_DIR="$SCRIPT_DIR"
 elif [[ "$MODE" == "install" && -f "$SCRIPT_DIR/run.py" && -f "$SCRIPT_DIR/requirements.txt" ]]; then
   SOURCE_DIR="$SCRIPT_DIR"
@@ -77,14 +80,15 @@ if [[ "$SOURCE_DIR" != "$INSTALL_DIR" ]]; then
     "$SOURCE_DIR/" "$INSTALL_DIR/"
 fi
 chown -R "$APP_USER:$APP_GROUP" "$INSTALL_DIR"
+chmod 0755 "$INSTALL_DIR/scripts/pistreamer-update.sh"
 ok "Programmdateien installiert; $INSTALL_DIR/data bleibt erhalten"
 
 log "Python-Umgebung einrichten"
 if [[ ! -x "$INSTALL_DIR/.venv/bin/python" ]]; then
-  sudo -u "$APP_USER" python3 -m venv "$INSTALL_DIR/.venv"
+  runuser -u "$APP_USER" -- python3 -m venv "$INSTALL_DIR/.venv"
 fi
-sudo -u "$APP_USER" "$INSTALL_DIR/.venv/bin/python" -m pip install --upgrade pip
-sudo -u "$APP_USER" "$INSTALL_DIR/.venv/bin/python" -m pip install -r "$INSTALL_DIR/requirements.txt"
+runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/python" -m pip install --upgrade pip
+runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/python" -m pip install -r "$INSTALL_DIR/requirements.txt"
 ok "Python-Abhängigkeiten installiert"
 
 log "Konfiguration einrichten"
@@ -101,15 +105,22 @@ else
 fi
 usermod -aG video,audio "$APP_USER"
 
-log "systemd-Dienst einrichten"
+log "Update-Center einrichten"
+install -d -m 2775 -o root -g "$APP_GROUP" "$RUNTIME_DIR"
+install -m 0644 "$INSTALL_DIR/systemd/pistreamer-update.service" "$UPDATE_SERVICE_FILE"
+install -m 0644 "$INSTALL_DIR/systemd/pistreamer-update.path" "$UPDATE_PATH_FILE"
+ok "Update-Dienst eingerichtet"
+
+log "systemd-Dienste einrichten"
 sed \
   -e "s/__USER__/$APP_USER/g" \
   -e "s/__GROUP__/$APP_GROUP/g" \
   "$INSTALL_DIR/systemd/pistreamer.service" > "$SERVICE_FILE"
 systemctl daemon-reload
-systemctl enable avahi-daemon NetworkManager pistreamer.service >/dev/null
+systemctl enable avahi-daemon NetworkManager pistreamer-update.path pistreamer.service >/dev/null
 systemctl restart avahi-daemon
 systemctl restart NetworkManager
+systemctl restart pistreamer-update.path
 systemctl restart pistreamer.service
 
 if ! systemctl is-active --quiet pistreamer.service; then
