@@ -50,8 +50,6 @@ def load_config() -> dict:
             else:
                 data[section] = values
 
-    # Existing installations only had youtube_url and stream_key. They continue
-    # to use YouTube unless a platform was explicitly selected later.
     stream = data.setdefault("stream", {})
     if stream.get("platform") not in {"youtube", "twitch", "custom"}:
         stream["platform"] = "youtube"
@@ -63,5 +61,5 @@ def save_config(config: dict) -> None:
     tmp = CONFIG_PATH.with_suffix(".tmp")
     with tmp.open("w", encoding="utf-8") as fh:
         yaml.safe_dump(config, fh, sort_keys=False, allow_unicode=True)
-    os.chmod(tmp, 0o600)
+    os.chmod(tmp, 0o660)
     tmp.replace(CONFIG_PATH)
