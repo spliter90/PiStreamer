@@ -18,12 +18,14 @@ class WifiNetwork:
 
 
 def _nmcli(*args: str, timeout: int = 20) -> str:
-    if not shutil.which("nmcli"):
+    nmcli = shutil.which("nmcli")
+    if not nmcli:
         raise RuntimeError("NetworkManager/nmcli ist nicht installiert.")
-    command = ["sudo", "-n", "nmcli", *args]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+    result = subprocess.run([nmcli, *args], capture_output=True, text=True, timeout=timeout)
     if result.returncode != 0:
         message = (result.stderr or result.stdout or "nmcli ist fehlgeschlagen").strip()
+        if "Not authorized" in message or "nicht berechtigt" in message.lower():
+            message += " Der PiStreamer-Dienst benötigt eine NetworkManager-Berechtigung."
         raise RuntimeError(message)
     return result.stdout.strip()
 
