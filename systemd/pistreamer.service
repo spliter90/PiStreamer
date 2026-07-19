@@ -1,5 +1,5 @@
 [Unit]
-Description=PiStreamer Web and YouTube streaming service
+Description=PiStreamer Web and streaming service
 After=network-online.target sound.target
 Wants=network-online.target
 
@@ -11,6 +11,8 @@ SupplementaryGroups=video audio
 WorkingDirectory=/opt/pistreamer
 Environment=PISTREAMER_CONFIG=/etc/pistreamer/config.yaml
 Environment=PYTHONUNBUFFERED=1
+RuntimeDirectory=pistreamer
+RuntimeDirectoryMode=0775
 ExecStart=/opt/pistreamer/.venv/bin/python /opt/pistreamer/run.py
 Restart=always
 RestartSec=5
