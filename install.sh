@@ -10,10 +10,14 @@ UPDATE_SERVICE_FILE="/etc/systemd/system/pistreamer-update.service"
 UPDATE_PATH_FILE="/etc/systemd/system/pistreamer-update.path"
 RUNTIME_DIR="/run/pistreamer"
 MODE="install"
+TMP_DIR=""
 
 log() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 ok() { printf '\033[1;32m✓ %s\033[0m\n' "$*"; }
 fail() { printf '\033[1;31mFehler: %s\033[0m\n' "$*" >&2; exit 1; }
+cleanup() { [[ -n "$TMP_DIR" ]] && rm -rf "$TMP_DIR"; }
+trap cleanup EXIT
+trap 'printf "\nFehler in Zeile %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 usage() {
   cat <<USAGE
@@ -49,30 +53,40 @@ id "$APP_USER" >/dev/null 2>&1 || fail "Benutzer '$APP_USER' existiert nicht."
 APP_GROUP="$(id -gn "$APP_USER")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-log "Systempakete installieren"
-apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y \
+log "Systempakete prüfen"
+export DEBIAN_FRONTEND=noninteractive
+for attempt in 1 2 3; do
+  if apt-get update; then
+    break
+  fi
+  [[ $attempt -lt 3 ]] || fail "apt-get update ist nach drei Versuchen fehlgeschlagen."
+  sleep 5
+done
+apt-get install -y \
   ca-certificates curl git rsync ffmpeg python3 python3-venv \
   v4l-utils alsa-utils avahi-daemon network-manager
 ok "Systempakete sind vorhanden"
 
-if [[ "$MODE" == "update" && -d "$SCRIPT_DIR/.git" ]]; then
-  log "Lokalen PiStreamer-Klon aktualisieren"
-  runuser -u "$APP_USER" -- git -C "$SCRIPT_DIR" pull --ff-only
-  SOURCE_DIR="$SCRIPT_DIR"
-elif [[ "$MODE" == "install" && -f "$SCRIPT_DIR/run.py" && -f "$SCRIPT_DIR/requirements.txt" ]]; then
+if [[ "$MODE" == "update" ]]; then
+  log "Saubere aktuelle PiStreamer-Version herunterladen"
+  TMP_DIR="$(mktemp -d)"
+  git clone --depth 1 "$REPO_URL" "$TMP_DIR/PiStreamer"
+  SOURCE_DIR="$TMP_DIR/PiStreamer"
+elif [[ -f "$SCRIPT_DIR/run.py" && -f "$SCRIPT_DIR/requirements.txt" ]]; then
   SOURCE_DIR="$SCRIPT_DIR"
 else
   log "Neueste PiStreamer-Version herunterladen"
   TMP_DIR="$(mktemp -d)"
-  trap 'rm -rf "${TMP_DIR:-}"' EXIT
   git clone --depth 1 "$REPO_URL" "$TMP_DIR/PiStreamer"
   SOURCE_DIR="$TMP_DIR/PiStreamer"
 fi
 
+[[ -f "$SOURCE_DIR/run.py" ]] || fail "Ungültige Quelldateien: run.py fehlt."
+[[ -f "$SOURCE_DIR/requirements.txt" ]] || fail "Ungültige Quelldateien: requirements.txt fehlt."
+
 log "Programm nach $INSTALL_DIR installieren"
 mkdir -p "$INSTALL_DIR" "$INSTALL_DIR/data" "$CONFIG_DIR"
-if [[ "$SOURCE_DIR" != "$INSTALL_DIR" ]]; then
+if [[ "$(readlink -f "$SOURCE_DIR")" != "$(readlink -f "$INSTALL_DIR")" ]]; then
   rsync -a --delete \
     --exclude '.git/' \
     --exclude '.venv/' \
@@ -80,21 +94,24 @@ if [[ "$SOURCE_DIR" != "$INSTALL_DIR" ]]; then
     "$SOURCE_DIR/" "$INSTALL_DIR/"
 fi
 chown -R "$APP_USER:$APP_GROUP" "$INSTALL_DIR"
-chmod 0755 "$INSTALL_DIR/scripts/pistreamer-update.sh"
+if [[ -f "$INSTALL_DIR/scripts/pistreamer-update.sh" ]]; then
+  chmod 0755 "$INSTALL_DIR/scripts/pistreamer-update.sh"
+fi
 ok "Programmdateien installiert; $INSTALL_DIR/data bleibt erhalten"
 
 log "Python-Umgebung einrichten"
 if [[ ! -x "$INSTALL_DIR/.venv/bin/python" ]]; then
   runuser -u "$APP_USER" -- python3 -m venv "$INSTALL_DIR/.venv"
 fi
-runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/python" -m pip install --upgrade pip
-runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/python" -m pip install -r "$INSTALL_DIR/requirements.txt"
+runuser -u "$APP_USER" -- env HOME="$(getent passwd "$APP_USER" | cut -d: -f6)" \
+  "$INSTALL_DIR/.venv/bin/python" -m pip install --upgrade pip
+runuser -u "$APP_USER" -- env HOME="$(getent passwd "$APP_USER" | cut -d: -f6)" \
+  "$INSTALL_DIR/.venv/bin/python" -m pip install -r "$INSTALL_DIR/requirements.txt"
 ok "Python-Abhängigkeiten installiert"
 
 log "Konfiguration einrichten"
 chown root:"$APP_GROUP" "$CONFIG_DIR"
 chmod 2770 "$CONFIG_DIR"
-
 if [[ ! -f "$CONFIG_FILE" ]]; then
   install -m 0660 -o root -g "$APP_GROUP" "$INSTALL_DIR/config/config.example.yaml" "$CONFIG_FILE"
   ok "Neue Konfiguration angelegt"
@@ -107,9 +124,13 @@ usermod -aG video,audio "$APP_USER"
 
 log "Update-Center einrichten"
 install -d -m 2775 -o root -g "$APP_GROUP" "$RUNTIME_DIR"
-install -m 0644 "$INSTALL_DIR/systemd/pistreamer-update.service" "$UPDATE_SERVICE_FILE"
-install -m 0644 "$INSTALL_DIR/systemd/pistreamer-update.path" "$UPDATE_PATH_FILE"
-ok "Update-Dienst eingerichtet"
+if [[ -f "$INSTALL_DIR/systemd/pistreamer-update.service" && -f "$INSTALL_DIR/systemd/pistreamer-update.path" ]]; then
+  install -m 0644 "$INSTALL_DIR/systemd/pistreamer-update.service" "$UPDATE_SERVICE_FILE"
+  install -m 0644 "$INSTALL_DIR/systemd/pistreamer-update.path" "$UPDATE_PATH_FILE"
+  ok "Update-Dienst eingerichtet"
+else
+  printf 'Hinweis: Update-Center-Dateien fehlen; Update-Dienst wird übersprungen.\n'
+fi
 
 log "systemd-Dienste einrichten"
 sed \
@@ -117,14 +138,24 @@ sed \
   -e "s/__GROUP__/$APP_GROUP/g" \
   "$INSTALL_DIR/systemd/pistreamer.service" > "$SERVICE_FILE"
 systemctl daemon-reload
-systemctl enable avahi-daemon NetworkManager pistreamer-update.path pistreamer.service >/dev/null
+systemctl enable avahi-daemon pistreamer.service >/dev/null
+systemctl enable NetworkManager >/dev/null 2>&1 || true
+if [[ -f "$UPDATE_PATH_FILE" ]]; then
+  systemctl enable pistreamer-update.path >/dev/null
+fi
 systemctl restart avahi-daemon
-systemctl restart NetworkManager
-systemctl restart pistreamer-update.path
+# NetworkManager wird absichtlich nicht neu gestartet: Ein Neustart kann eine
+# laufende SSH- oder Web-Verbindung während der Installation unterbrechen.
+if ! systemctl is-active --quiet NetworkManager; then
+  systemctl start NetworkManager || printf 'Hinweis: NetworkManager konnte nicht gestartet werden.\n'
+fi
+if [[ -f "$UPDATE_PATH_FILE" ]]; then
+  systemctl restart pistreamer-update.path
+fi
 systemctl restart pistreamer.service
 
 if ! systemctl is-active --quiet pistreamer.service; then
-  journalctl -u pistreamer.service -n 30 --no-pager || true
+  journalctl -u pistreamer.service -n 50 --no-pager || true
   fail "PiStreamer konnte nicht gestartet werden."
 fi
 ok "PiStreamer läuft"
