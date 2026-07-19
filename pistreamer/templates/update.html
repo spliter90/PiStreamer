@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+  <title>Updates · PiStreamer</title>
+</head>
+<body>
+<header>
+  <div><p class="eyebrow">System</p><h1>Update-Center</h1></div>
+  <nav><a href="/settings-menu">← Einstellungen</a></nav>
+</header>
+<main>
+  <div id="notice" class="notice" hidden></div>
+  <section class="settings-grid">
+    <article class="card option-card">
+      <div class="option-card__header"><div class="option-icon">⬆</div><div><h2>PiStreamer</h2><p class="muted">Softwarestand und verfügbare Aktualisierung</p></div></div>
+      <dl>
+        <dt>Installiert</dt><dd id="installed">{{ info.installed }}</dd>
+        <dt>Neueste Version</dt><dd id="latest">{{ info.latest or 'nicht geprüft' }}</dd>
+        <dt>Status</dt><dd id="version-state">{% if info.update_available %}Update verfügbar{% elif info.check_error %}Prüfung fehlgeschlagen{% else %}Aktuell{% endif %}</dd>
+      </dl>
+      {% if info.check_error %}<p class="field-hint">{{ info.check_error }}</p>{% endif %}
+      <div class="actions">
+        <button type="button" class="secondary" id="check-button">Neu prüfen</button>
+        <button type="button" id="install-button" {% if not info.update_available %}disabled{% endif %}>Jetzt aktualisieren</button>
+      </div>
+    </article>
+
+    <article class="card option-card">
+      <div class="option-card__header"><div class="option-icon">🧰</div><div><h2>Update-Status</h2><p class="muted">Backup, Installation und Neustart</p></div></div>
+      <p><strong id="job-state">{{ info.status.state or 'bereit' }}</strong></p>
+      <p id="job-message" class="muted">{{ info.status.message or 'Kein Update aktiv.' }}</p>
+      <pre id="job-log">{{ (info.status.log or []) | join('\n') }}</pre>
+      <p class="field-hint">Vor jedem Update wird die Konfiguration unter <code>/var/backups/pistreamer</code> gesichert.</p>
+    </article>
+  </section>
+</main>
+<script>
+const notice = document.getElementById('notice');
+const checkButton = document.getElementById('check-button');
+const installButton = document.getElementById('install-button');
+let polling = false;
+
+function showNotice(text, error=false) {
+  notice.hidden = false;
+  notice.textContent = text;
+  notice.className = `notice ${error ? 'error' : 'success'}`;
+}
+
+function render(info) {
+  document.getElementById('installed').textContent = info.installed || 'unbekannt';
+  document.getElementById('latest').textContent = info.latest || 'nicht geprüft';
+  document.getElementById('version-state').textContent = info.update_available ? 'Update verfügbar' : (info.check_error ? 'Prüfung fehlgeschlagen' : 'Aktuell');
+  installButton.disabled = !info.update_available || ['queued','running'].includes(info.status?.state);
+  document.getElementById('job-state').textContent = info.status?.state || 'bereit';
+  document.getElementById('job-message').textContent = info.status?.message || 'Kein Update aktiv.';
+  document.getElementById('job-log').textContent = Array.isArray(info.status?.log) ? info.status.log.join('\n') : '';
+  if (['queued','running'].includes(info.status?.state)) startPolling();
+}
+
+async function call(url, options={}) {
+  const response = await fetch(url, {headers: {'Accept':'application/json'}, cache:'no-store', ...options});
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+  return data;
+}
+
+async function refresh(remote=false) {
+  try { render(await call(`/api/update/status${remote ? '?remote=1' : ''}`)); }
+  catch (error) { showNotice(error.message, true); }
+}
+
+function startPolling() {
+  if (polling) return;
+  polling = true;
+  const timer = setInterval(async () => {
+    try {
+      const info = await call('/api/update/status');
+      render(info);
+      if (!['queued','running'].includes(info.status?.state)) {
+        clearInterval(timer);
+        polling = false;
+        if (info.status?.state === 'success') setTimeout(() => location.reload(), 4000);
+      }
+    } catch (_) {}
+  }, 2000);
+}
+
+checkButton.addEventListener('click', async () => {
+  checkButton.disabled = true;
+  try { render(await call('/api/update/check', {method:'POST'})); }
+  catch (error) { showNotice(error.message, true); }
+  finally { checkButton.disabled = false; }
+});
+
+installButton.addEventListener('click', async () => {
+  if (!confirm('PiStreamer jetzt aktualisieren? Der Dienst wird dabei neu gestartet.')) return;
+  installButton.disabled = true;
+  try {
+    const result = await call('/api/update/install', {method:'POST'});
+    showNotice(result.message);
+    startPolling();
+  } catch (error) {
+    showNotice(error.message, true);
+    installButton.disabled = false;
+  }
+});
+
+if (['queued','running'].includes({{ (info.status.state or '') | tojson }})) startPolling();
+</script>
+</body>
+</html>
