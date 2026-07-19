@@ -81,6 +81,7 @@ def status():
         "ram": psutil.virtual_memory().percent,
         "temperature": temperature(),
         "hostname": socket.gethostname(),
+        "platform": config["stream"].get("platform", "youtube"),
         "video_device": config["stream"]["video_device"],
         "audio_device": config["stream"]["audio_device"],
     })
@@ -166,6 +167,20 @@ def settings():
         overlay = config.setdefault("overlay", {})
         pause_screen = config.setdefault("pause_screen", {})
 
+        platform = request.form.get("platform", "youtube").strip().lower()
+        if platform not in {"youtube", "twitch", "custom"}:
+            platform = "youtube"
+        custom_url = request.form.get("custom_url", "").strip()
+        if custom_url and not custom_url.lower().startswith(("rtmp://", "rtmps://")):
+            return render_template(
+                "settings.html",
+                config=config,
+                message=None,
+                error="Die benutzerdefinierte Serveradresse muss mit rtmp:// oder rtmps:// beginnen.",
+            ), 400
+
+        s["platform"] = platform
+        s["custom_url"] = custom_url
         s["stream_key"] = request.form.get("stream_key", "").strip()
         s["video_device"] = request.form.get("video_device", "/dev/video0").strip()
         s["audio_device"] = request.form.get("audio_device", "default").strip()
@@ -191,7 +206,7 @@ def settings():
         message = "Einstellungen gespeichert"
 
     masked = {**config, "stream": {**config["stream"], "stream_key": config["stream"].get("stream_key", "")}}
-    return render_template("settings.html", config=masked, message=message)
+    return render_template("settings.html", config=masked, message=message, error=None)
 
 
 if config["stream"].get("autostart"):
