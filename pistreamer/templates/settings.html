@@ -14,13 +14,26 @@
 
   <main>
     {% if message %}<div class="notice success">{{ message }}</div>{% endif %}
+    {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
 
     <form method="post" class="settings-form">
       <section class="settings-grid">
         <article class="card option-card">
-          <div class="option-card__header"><div class="option-icon">▶</div><div><h2>YouTube</h2><p class="muted">Zugangsdaten für den Livestream</p></div></div>
-          <label>Stream-Key<input type="password" name="stream_key" value="{{ config.stream.stream_key }}" placeholder="xxxx-xxxx-xxxx-xxxx" autocomplete="off" required></label>
-          <p class="field-hint">Der Stream-Key wird lokal in der PiStreamer-Konfiguration gespeichert.</p>
+          <div class="option-card__header"><div class="option-icon">📡</div><div><h2>Streaming-Ziel</h2><p class="muted">Auswählen, wohin PiStreamer sendet</p></div></div>
+          <label>Plattform
+            <select name="platform" id="platform-select">
+              <option value="youtube" {% if config.stream.platform == 'youtube' %}selected{% endif %}>YouTube</option>
+              <option value="twitch" {% if config.stream.platform == 'twitch' %}selected{% endif %}>Twitch</option>
+              <option value="custom" {% if config.stream.platform == 'custom' %}selected{% endif %}>Benutzerdefiniertes RTMP/RTMPS</option>
+            </select>
+          </label>
+          <label id="custom-url-field">RTMP/RTMPS-Serveradresse
+            <input name="custom_url" value="{{ config.stream.custom_url }}" placeholder="rtmps://stream.example.com/live">
+          </label>
+          <label><span id="stream-key-label">Stream-Key</span>
+            <input type="password" name="stream_key" value="{{ config.stream.stream_key }}" placeholder="Stream-Key eintragen" autocomplete="off" required>
+          </label>
+          <p class="field-hint" id="platform-hint">Der Stream-Key wird ausschließlich lokal gespeichert.</p>
         </article>
 
         <article class="card option-card" id="video-card">
@@ -79,11 +92,22 @@
   </main>
 
   <script>
+    const platformSelect = document.getElementById("platform-select");
+    const customUrlField = document.getElementById("custom-url-field");
+    const streamKeyLabel = document.getElementById("stream-key-label");
+    const platformHint = document.getElementById("platform-hint");
     const videoSelect = document.getElementById("video-device");
     const audioSelect = document.getElementById("audio-device");
     const videoStatus = document.getElementById("video-status");
     const audioStatus = document.getElementById("audio-status");
     const refreshButton = document.getElementById("refresh-devices");
+
+    function updatePlatformFields() {
+      const platform = platformSelect.value;
+      customUrlField.hidden = platform !== "custom";
+      streamKeyLabel.textContent = platform === "youtube" ? "YouTube-Stream-Key" : platform === "twitch" ? "Twitch-Stream-Key" : "Stream-Key";
+      platformHint.textContent = platform === "youtube" ? "Der Key aus YouTube Studio wird lokal gespeichert." : platform === "twitch" ? "Der Primäre Stream-Schlüssel aus dem Twitch Creator Dashboard wird lokal gespeichert." : "Serveradresse und Stream-Key werden zu einem RTMP/RTMPS-Ziel zusammengesetzt.";
+    }
 
     function fillSelect(select, devices, fallback) {
       const current = select.dataset.current || select.value || fallback;
@@ -122,7 +146,9 @@
       }
     }
 
+    platformSelect.addEventListener("change", updatePlatformFields);
     refreshButton.addEventListener("click", loadDevices);
+    updatePlatformFields();
     loadDevices();
   </script>
 </body>
