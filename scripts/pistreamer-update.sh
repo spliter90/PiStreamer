@@ -3,7 +3,6 @@ set -Eeuo pipefail
 
 REPO_URL="https://github.com/spliter90/PiStreamer.git"
 INSTALL_DIR="/opt/pistreamer"
-CONFIG_DIR="/etc/pistreamer"
 RUNTIME_DIR="/run/pistreamer"
 STATUS_FILE="$RUNTIME_DIR/update-status.json"
 REQUEST_FILE="$RUNTIME_DIR/update.request"
@@ -67,9 +66,10 @@ rsync -a --delete \
   --exclude 'data/' \
   "$TMP_DIR/source/" "$INSTALL_DIR/"
 chown -R "$APP_USER:$APP_GROUP" "$INSTALL_DIR"
+chmod 0755 "$INSTALL_DIR/scripts/pistreamer-update.sh"
 
 step "Python-Abhängigkeiten aktualisieren"
-sudo -u "$APP_USER" "$INSTALL_DIR/.venv/bin/python" -m pip install -r "$INSTALL_DIR/requirements.txt"
+runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/python" -m pip install -r "$INSTALL_DIR/requirements.txt"
 
 step "Systemd-Konfiguration aktualisieren"
 install -m 0644 "$INSTALL_DIR/systemd/pistreamer-update.service" /etc/systemd/system/pistreamer-update.service
