@@ -47,13 +47,32 @@ class StreamManager:
             .replace("]", r"\]")
         )
 
+    @staticmethod
+    def _stream_target(stream: dict) -> tuple[str, str]:
+        platform = str(stream.get("platform", "youtube")).lower()
+        labels = {"youtube": "YouTube", "twitch": "Twitch", "custom": "RTMP"}
+        urls = {
+            "youtube": str(stream.get("youtube_url", "rtmp://a.rtmp.youtube.com/live2")),
+            "twitch": str(stream.get("twitch_url", "rtmp://live.twitch.tv/app")),
+            "custom": str(stream.get("custom_url", "")),
+        }
+        if platform not in urls:
+            raise ValueError("Unbekannte Streaming-Plattform")
+
+        server_url = urls[platform].strip()
+        stream_key = str(stream.get("stream_key", "")).strip()
+        if not server_url:
+            raise ValueError("RTMP-Serveradresse fehlt")
+        if not server_url.lower().startswith(("rtmp://", "rtmps://")):
+            raise ValueError("Serveradresse muss mit rtmp:// oder rtmps:// beginnen")
+        if not stream_key:
+            raise ValueError(f"{labels[platform]}-Stream-Key fehlt")
+        return labels[platform], f"{server_url.rstrip('/')}/{stream_key.lstrip('/')}"
+
     def _command(self) -> list[str]:
         s = self.config["stream"]
         overlay = self.config.get("overlay", {})
-        if not s.get("stream_key"):
-            raise ValueError("YouTube-Stream-Key fehlt")
-
-        target = f"{s['youtube_url'].rstrip('/')}/{s['stream_key']}"
+        platform_label, target = self._stream_target(s)
         cmd = ["ffmpeg", "-hide_banner", "-loglevel", "info"]
 
         if self.paused:
@@ -118,6 +137,7 @@ class StreamManager:
             "-c:a", "aac", "-b:a", s["audio_bitrate"], "-ar", "44100",
             "-shortest", "-f", "flv", target,
         ]
+        self.logs.append(f"Streaming-Ziel: {platform_label}")
         return cmd
 
     def start(self) -> None:
