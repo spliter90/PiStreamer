@@ -1,96 +1,33 @@
 <!doctype html>
 <html lang="de">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="/static/style.css">
-  <title>Einstellungen · PiStreamer</title>
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><title>Einstellungen · PiStreamer</title></head>
 <body>
-<header>
-  <div><p class="eyebrow">Einstellungen</p><h1>{% if section == 'target' %}Streaming-Ziel{% elif section == 'devices' %}Geräte & Bild{% elif section == 'mobile' %}Mobilfunk{% elif section == 'recording' %}Sicherheitsaufnahme{% elif section == 'appearance' %}Darstellung{% else %}System & Sicherheit{% endif %}</h1></div>
-  <nav><a href="/settings-menu">← Einstellungsmenü</a></nav>
-</header>
+<header><div><p class="eyebrow">Einstellungen</p><h1>{% if section == 'target' %}Streaming-Ziel{% elif section == 'devices' %}Geräte & Bild{% elif section == 'mobile' %}Qualität & Netzwerk{% elif section == 'recording' %}Sicherheitsaufnahme{% elif section == 'appearance' %}Darstellung{% else %}System & Sicherheit{% endif %}</h1></div><nav><a href="/settings-menu">← Einstellungsmenü</a></nav></header>
 <main>
-  {% if message %}<div class="notice success">{{ message }}</div>{% endif %}
-  <form method="post" class="settings-form">
-    <section class="settings-grid">
-      {% if section == 'target' %}
-      <article class="card option-card">
-        <div class="option-card__header"><div class="option-icon">📡</div><div><h2>Zielplattform</h2><p class="muted">Der Schlüssel bleibt unverändert, wenn das Feld leer bleibt.</p></div></div>
-        <label>Plattform<select name="platform" id="platform-select"><option value="youtube" {% if config.stream.platform == 'youtube' %}selected{% endif %}>YouTube</option><option value="twitch" {% if config.stream.platform == 'twitch' %}selected{% endif %}>Twitch</option><option value="custom" {% if config.stream.platform == 'custom' %}selected{% endif %}>Eigenes RTMP/RTMPS-Ziel</option></select></label>
-        <label id="custom-url-field">Serveradresse<input name="custom_url" value="{{ config.stream.custom_url }}" placeholder="rtmps://server.example/live"></label>
-        <label>Neuer Stream-Key<input type="password" name="stream_key" autocomplete="off" placeholder="Leer lassen, um den vorhandenen Key zu behalten"></label>
-      </article>
-      {% elif section == 'devices' %}
-      <article class="card option-card">
-        <div class="option-card__header"><div class="option-icon">🎥</div><div><h2>Eingabegeräte</h2><p class="muted">Kamera und Audioquelle auswählen</p></div></div>
-        <label>Video-Gerät<select id="video-device" name="video_device" data-current="{{ config.stream.video_device }}"><option>{{ config.stream.video_device }}</option></select></label>
-        <label>Audio-Gerät<select id="audio-device" name="audio_device" data-current="{{ config.stream.audio_device }}"><option>{{ config.stream.audio_device }}</option></select></label>
-        <button type="button" class="secondary" id="refresh-devices">↻ Geräte suchen</button>
-      </article>
-      <article class="card option-card">
-        <div class="option-card__header"><div class="option-icon">🖼</div><div><h2>Bildformat</h2><p class="muted">Muss von der Kamera unterstützt werden</p></div></div>
-        <label>Breite<input type="number" name="width" min="320" max="3840" value="{{ config.stream.width }}"></label>
-        <label>Höhe<input type="number" name="height" min="240" max="2160" value="{{ config.stream.height }}"></label>
-        <label>Bildrate<input type="number" name="fps" min="10" max="60" value="{{ config.stream.fps }}"></label>
-      </article>
-      {% elif section == 'mobile' %}
-      <article class="card option-card">
-        <div class="option-card__header"><div class="option-icon">📶</div><div><h2>Mobilfunk-Modus</h2><p class="muted">Für LTE/5G mit schwankender Uploadrate</p></div></div>
-        <label class="toggle-row"><span><strong>Mobilfunk optimieren</strong><small>Konservative Bitrate und Wiederverbindung verwenden</small></span><input type="checkbox" name="mobile_mode" {% if config.stream.mobile_mode %}checked{% endif %}></label>
-        <label>Profil<select name="mobile_profile" id="mobile-profile"><option value="economy" {% if config.stream.mobile_profile == 'economy' %}selected{% endif %}>Sparsam · 480p25 · 800 kbit/s</option><option value="stable" {% if config.stream.mobile_profile == 'stable' %}selected{% endif %}>Stabil · 720p25 · 1500 kbit/s</option><option value="quality" {% if config.stream.mobile_profile == 'quality' %}selected{% endif %}>Qualität · 720p30 · 2500 kbit/s</option><option value="custom" {% if config.stream.mobile_profile == 'custom' %}selected{% endif %}>Benutzerdefiniert</option></select></label>
-        <label>Video-Bitrate<input name="video_bitrate" value="{{ config.stream.video_bitrate }}"></label>
-        <label>Maximale Bitrate<input name="maxrate" value="{{ config.stream.maxrate }}"></label>
-        <label>Encoder-Puffer<input name="buffer_size" value="{{ config.stream.buffer_size }}"></label>
-      </article>
-      <article class="card option-card">
-        <div class="option-card__header"><div class="option-icon">🔁</div><div><h2>Wiederverbindung</h2><p class="muted">FFmpeg nach einem Verbindungsabbruch automatisch neu starten</p></div></div>
-        <label class="toggle-row"><span><strong>Automatisch neu verbinden</strong><small>Der Stream wird nach einem Abbruch erneut gestartet</small></span><input type="checkbox" name="reconnect_enabled" {% if config.stream.reconnect_enabled %}checked{% endif %}></label>
-        <label>Wartezeit in Sekunden<input type="number" name="reconnect_delay" min="1" max="60" value="{{ config.stream.reconnect_delay }}"></label>
-      </article>
-      {% elif section == 'recording' %}
-      <article class="card option-card">
-        <div class="option-card__header"><div class="option-icon">💾</div><div><h2>Lokale Sicherheitsaufnahme</h2><p class="muted">Zeichnet parallel zum Livestream segmentiert auf</p></div></div>
-        <label class="toggle-row"><span><strong>Aufnahme aktivieren</strong><small>Hilft bei vollständigen Mobilfunkausfällen</small></span><input type="checkbox" name="enabled" {% if config.recording.enabled %}checked{% endif %}></label>
-        <label>Aufnahmeverzeichnis<input name="path" value="{{ config.recording.path }}"></label>
-        <label>Segmentlänge in Sekunden<input type="number" name="segment_seconds" min="10" max="3600" value="{{ config.recording.segment_seconds }}"></label>
-        <label>Maximaler Speicher in GB<input type="number" name="max_storage_gb" min="1" max="1000" value="{{ config.recording.max_storage_gb }}"></label>
-        <label class="toggle-row"><span><strong>Älteste Segmente löschen</strong><small>Speicherlimit automatisch einhalten</small></span><input type="checkbox" name="delete_oldest" {% if config.recording.delete_oldest %}checked{% endif %}></label>
-      </article>
-      {% elif section == 'appearance' %}
-      <article class="card option-card">
-        <div class="option-card__header"><div class="option-icon">🎨</div><div><h2>Einblendungen</h2><p class="muted">Logo und Text im Stream</p></div></div>
-        <label class="toggle-row"><span><strong>Logo anzeigen</strong></span><input type="checkbox" name="logo_enabled" {% if config.overlay.logo_enabled %}checked{% endif %}></label>
-        <label>Logo-Datei<input name="logo_path" value="{{ config.overlay.logo_path }}"></label>
-        <label>Logo-Position<select name="logo_position"><option value="top_left" {% if config.overlay.logo_position == 'top_left' %}selected{% endif %}>Oben links</option><option value="top_right" {% if config.overlay.logo_position == 'top_right' %}selected{% endif %}>Oben rechts</option><option value="bottom_left" {% if config.overlay.logo_position == 'bottom_left' %}selected{% endif %}>Unten links</option><option value="bottom_right" {% if config.overlay.logo_position == 'bottom_right' %}selected{% endif %}>Unten rechts</option></select></label>
-        <label>Logo-Breite in Prozent<input type="number" name="logo_width_percent" min="5" max="50" value="{{ config.overlay.logo_width_percent }}"></label>
-        <hr>
-        <label class="toggle-row"><span><strong>Text anzeigen</strong></span><input type="checkbox" name="text_enabled" {% if config.overlay.text_enabled %}checked{% endif %}></label>
-        <label>Text<input name="overlay_text" value="{{ config.overlay.text }}"></label>
-        <label>Text-Position<select name="text_position"><option value="top_left" {% if config.overlay.text_position == 'top_left' %}selected{% endif %}>Oben links</option><option value="top_right" {% if config.overlay.text_position == 'top_right' %}selected{% endif %}>Oben rechts</option><option value="bottom_left" {% if config.overlay.text_position == 'bottom_left' %}selected{% endif %}>Unten links</option><option value="bottom_right" {% if config.overlay.text_position == 'bottom_right' %}selected{% endif %}>Unten rechts</option></select></label>
-        <label>Schriftgröße<input type="number" name="text_size" min="12" max="96" value="{{ config.overlay.text_size }}"></label>
-      </article>
-      <article class="card option-card"><div class="option-card__header"><div class="option-icon">⏸</div><div><h2>Pausenbild</h2></div></div><label>Bilddatei<input name="pause_image_path" value="{{ config.pause_screen.image_path }}"></label></article>
-      {% else %}
-      <article class="card option-card">
-        <div class="option-card__header"><div class="option-icon">⚙</div><div><h2>Startverhalten</h2></div></div>
-        <label class="toggle-row"><span><strong>Autostart</strong><small>Stream beim Start des Dienstes automatisch starten</small></span><input type="checkbox" name="autostart" {% if config.stream.autostart %}checked{% endif %}></label>
-      </article>
-      <article class="card option-card">
-        <div class="option-card__header"><div class="option-icon">🔒</div><div><h2>Web-Passwort</h2></div></div>
-        <label>Neues Passwort<input type="password" name="password" autocomplete="new-password" placeholder="Leer lassen, um es nicht zu ändern"></label>
-      </article>
-      {% endif %}
-    </section>
-    <section class="settings-actions"><a class="button secondary-button" href="/settings-menu">Abbrechen</a><button type="submit">Speichern</button></section>
-  </form>
+{% if message %}<div class="notice success">{{ message }}</div>{% endif %}
+<form method="post" class="settings-form"><section class="settings-grid">
+{% if section == 'target' %}
+<article class="card option-card"><div class="option-card__header"><div class="option-icon">📡</div><div><h2>Zielplattform</h2><p class="muted">Der Schlüssel bleibt unverändert, wenn das Feld leer bleibt.</p></div></div><label>Plattform<select name="platform" id="platform-select"><option value="youtube" {% if config.stream.platform == 'youtube' %}selected{% endif %}>YouTube</option><option value="twitch" {% if config.stream.platform == 'twitch' %}selected{% endif %}>Twitch</option><option value="custom" {% if config.stream.platform == 'custom' %}selected{% endif %}>Eigenes RTMP/RTMPS-Ziel</option></select></label><label id="custom-url-field">Serveradresse<input name="custom_url" value="{{ config.stream.custom_url }}" placeholder="rtmps://server.example/live"></label><label>Neuer Stream-Key<input type="password" name="stream_key" autocomplete="off" placeholder="Leer lassen, um den vorhandenen Key zu behalten"></label></article>
+{% elif section == 'devices' %}
+<article class="card option-card"><div class="option-card__header"><div class="option-icon">🎥</div><div><h2>Eingabegeräte</h2><p class="muted">Kamera und Audioquelle auswählen</p></div></div><label>Video-Gerät<select id="video-device" name="video_device" data-current="{{ config.stream.video_device }}"><option>{{ config.stream.video_device }}</option></select></label><label>Audio-Gerät<select id="audio-device" name="audio_device" data-current="{{ config.stream.audio_device }}"><option>{{ config.stream.audio_device }}</option></select></label><button type="button" class="secondary" id="refresh-devices">↻ Geräte suchen</button></article>
+<article class="card option-card"><div class="option-card__header"><div class="option-icon">🖼</div><div><h2>Benutzerdefiniertes Bildformat</h2><p class="muted">Speichern setzt das Qualitätsprofil auf Benutzerdefiniert.</p></div></div><label>Breite<input type="number" name="width" min="320" max="3840" value="{{ config.stream.width }}"></label><label>Höhe<input type="number" name="height" min="240" max="2160" value="{{ config.stream.height }}"></label><label>Bildrate<input type="number" name="fps" min="10" max="60" value="{{ config.stream.fps }}"></label></article>
+{% elif section == 'mobile' %}
+<article class="card option-card"><div class="option-card__header"><div class="option-icon">📶</div><div><h2>Streaming-Profil</h2><p class="muted">Auflösung, Bildrate, Bitrate, Maxrate und Puffer werden gemeinsam gesetzt.</p></div></div>
+<label>Profil<select name="quality_profile" id="quality-profile">{% for key, profile in profiles.items() %}<option value="{{ key }}" {% if config.stream.quality_profile == key %}selected{% endif %}>{{ profile.label }} · {{ profile.width }}×{{ profile.height }}p{{ profile.fps }} · {{ profile.video_bitrate }}</option>{% endfor %}<option value="custom" {% if config.stream.quality_profile == 'custom' %}selected{% endif %}>Benutzerdefiniert</option></select></label>
+<label class="toggle-row"><span><strong>Mobilfunk optimieren</strong><small>Konservative Verbindungseinstellungen verwenden</small></span><input type="checkbox" name="mobile_mode" {% if config.stream.mobile_mode %}checked{% endif %}></label>
+<label class="toggle-row"><span><strong>Qualität automatisch reduzieren</strong><small>Nach mehreren Streamabbrüchen auf das nächstkleinere Profil wechseln</small></span><input type="checkbox" name="auto_quality" {% if config.stream.auto_quality %}checked{% endif %}></label>
+<div id="custom-quality"><label>Video-Bitrate<input name="video_bitrate" value="{{ config.stream.video_bitrate }}"></label><label>Maximale Bitrate<input name="maxrate" value="{{ config.stream.maxrate }}"></label><label>Encoder-Puffer<input name="buffer_size" value="{{ config.stream.buffer_size }}"></label></div></article>
+<article class="card option-card"><div class="option-card__header"><div class="option-icon">🔁</div><div><h2>Wiederverbindung</h2><p class="muted">FFmpeg nach einem Verbindungsabbruch automatisch neu starten</p></div></div><label class="toggle-row"><span><strong>Automatisch neu verbinden</strong></span><input type="checkbox" name="reconnect_enabled" {% if config.stream.reconnect_enabled %}checked{% endif %}></label><label>Wartezeit in Sekunden<input type="number" name="reconnect_delay" min="1" max="60" value="{{ config.stream.reconnect_delay }}"></label></article>
+{% elif section == 'recording' %}
+<article class="card option-card"><div class="option-card__header"><div class="option-icon">💾</div><div><h2>Lokale Sicherheitsaufnahme</h2><p class="muted">Zeichnet parallel zum Livestream segmentiert auf</p></div></div><label class="toggle-row"><span><strong>Aufnahme aktivieren</strong></span><input type="checkbox" name="enabled" {% if config.recording.enabled %}checked{% endif %}></label><label>Aufnahmeverzeichnis<input name="path" value="{{ config.recording.path }}"></label><label>Segmentlänge in Sekunden<input type="number" name="segment_seconds" min="10" max="3600" value="{{ config.recording.segment_seconds }}"></label><label>Maximaler Speicher in GB<input type="number" name="max_storage_gb" min="1" max="1000" value="{{ config.recording.max_storage_gb }}"></label><label class="toggle-row"><span><strong>Älteste Segmente löschen</strong></span><input type="checkbox" name="delete_oldest" {% if config.recording.delete_oldest %}checked{% endif %}></label></article>
+{% elif section == 'appearance' %}
+<article class="card option-card"><div class="option-card__header"><div class="option-icon">🎨</div><div><h2>Einblendungen</h2></div></div><label class="toggle-row"><span><strong>Logo anzeigen</strong></span><input type="checkbox" name="logo_enabled" {% if config.overlay.logo_enabled %}checked{% endif %}></label><label>Logo-Datei<input name="logo_path" value="{{ config.overlay.logo_path }}"></label><label>Logo-Position<select name="logo_position"><option value="top_left" {% if config.overlay.logo_position == 'top_left' %}selected{% endif %}>Oben links</option><option value="top_right" {% if config.overlay.logo_position == 'top_right' %}selected{% endif %}>Oben rechts</option><option value="bottom_left" {% if config.overlay.logo_position == 'bottom_left' %}selected{% endif %}>Unten links</option><option value="bottom_right" {% if config.overlay.logo_position == 'bottom_right' %}selected{% endif %}>Unten rechts</option></select></label><label>Logo-Breite in Prozent<input type="number" name="logo_width_percent" min="5" max="50" value="{{ config.overlay.logo_width_percent }}"></label><hr><label class="toggle-row"><span><strong>Text anzeigen</strong></span><input type="checkbox" name="text_enabled" {% if config.overlay.text_enabled %}checked{% endif %}></label><label>Text<input name="overlay_text" value="{{ config.overlay.text }}"></label><label>Text-Position<select name="text_position"><option value="top_left" {% if config.overlay.text_position == 'top_left' %}selected{% endif %}>Oben links</option><option value="top_right" {% if config.overlay.text_position == 'top_right' %}selected{% endif %}>Oben rechts</option><option value="bottom_left" {% if config.overlay.text_position == 'bottom_left' %}selected{% endif %}>Unten links</option><option value="bottom_right" {% if config.overlay.text_position == 'bottom_right' %}selected{% endif %}>Unten rechts</option></select></label><label>Schriftgröße<input type="number" name="text_size" min="12" max="96" value="{{ config.overlay.text_size }}"></label></article><article class="card option-card"><div class="option-card__header"><div class="option-icon">⏸</div><div><h2>Pausenbild</h2></div></div><label>Bilddatei<input name="pause_image_path" value="{{ config.pause_screen.image_path }}"></label></article>
+{% else %}
+<article class="card option-card"><div class="option-card__header"><div class="option-icon">⚙</div><div><h2>Startverhalten</h2></div></div><label class="toggle-row"><span><strong>Autostart</strong></span><input type="checkbox" name="autostart" {% if config.stream.autostart %}checked{% endif %}></label></article><article class="card option-card"><div class="option-card__header"><div class="option-icon">🔒</div><div><h2>Web-Passwort</h2></div></div><label>Neues Passwort<input type="password" name="password" autocomplete="new-password" placeholder="Leer lassen, um es nicht zu ändern"></label></article>
+{% endif %}
+</section><section class="settings-actions"><a class="button secondary-button" href="/settings-menu">Abbrechen</a><button type="submit">Speichern</button></section></form>
 </main>
 {% if section == 'target' %}<script>const p=document.getElementById('platform-select'),c=document.getElementById('custom-url-field');function u(){c.hidden=p.value!=='custom'}p.addEventListener('change',u);u();</script>{% endif %}
-{% if section == 'devices' %}<script>
-const v=document.getElementById('video-device'),a=document.getElementById('audio-device'),b=document.getElementById('refresh-devices');
-function fill(el,items,fallback){const cur=el.dataset.current||fallback;el.replaceChildren();[...new Set([cur,...items].filter(Boolean))].forEach(x=>{const o=document.createElement('option');o.value=x;o.textContent=x;o.selected=x===cur;el.appendChild(o)})}
-async function load(){b.disabled=true;try{const r=await fetch('/api/devices',{cache:'no-store'}),d=await r.json();fill(v,d.video||[],'/dev/video0');fill(a,d.audio||[],'default')}finally{b.disabled=false}}b.addEventListener('click',load);load();
-</script>{% endif %}
-</body>
-</html>
+{% if section == 'devices' %}<script>const v=document.getElementById('video-device'),a=document.getElementById('audio-device'),b=document.getElementById('refresh-devices');function fill(el,items,fallback){const cur=el.dataset.current||fallback;el.replaceChildren();[...new Set([cur,...items].filter(Boolean))].forEach(x=>{const o=document.createElement('option');o.value=x;o.textContent=x;o.selected=x===cur;el.appendChild(o)})}async function load(){b.disabled=true;try{const r=await fetch('/api/devices',{cache:'no-store'}),d=await r.json();fill(v,d.video||[],'/dev/video0');fill(a,d.audio||[],'default')}finally{b.disabled=false}}b.addEventListener('click',load);load();</script>{% endif %}
+{% if section == 'mobile' %}<script>const q=document.getElementById('quality-profile'),c=document.getElementById('custom-quality');function toggleCustom(){c.hidden=q.value!=='custom'}q.addEventListener('change',toggleCustom);toggleCustom();</script>{% endif %}
+</body></html>
