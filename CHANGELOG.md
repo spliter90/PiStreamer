@@ -7,6 +7,11 @@ Das Format orientiert sich an Keep a Changelog und das Projekt verwendet Semanti
 
 ### Added
 
+- Strukturierte Dokumentation unter `docs/`
+- Installationsanleitung mit Update- und Sicherheitsinformationen
+- Anleitung für Erstkonfiguration und Teststream
+- Referenz der Streaming- und Mobilfunkprofile
+- Zentrale Fehlerbehebungsanleitung
 - Installations- und Update-Skript für Raspberry Pi OS und Debian
 - Weboberfläche zur Stream-Steuerung und Konfiguration
 - Pausenbild sowie Logo- und Text-Overlays
