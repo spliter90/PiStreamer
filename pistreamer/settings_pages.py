@@ -6,12 +6,7 @@ from flask import redirect, render_template, request, url_for
 
 from .app import app, auth_required, config, manager
 from .config import save_config
-
-MOBILE_PROFILES = {
-    "economy": {"width": 854, "height": 480, "fps": 25, "video_bitrate": "800k", "maxrate": "1000k", "buffer_size": "2000k"},
-    "stable": {"width": 1280, "height": 720, "fps": 25, "video_bitrate": "1500k", "maxrate": "1800k", "buffer_size": "3600k"},
-    "quality": {"width": 1280, "height": 720, "fps": 30, "video_bitrate": "2500k", "maxrate": "2800k", "buffer_size": "5600k"},
-}
+from .profiles import STREAM_PROFILES, apply_profile
 
 
 def _defaults() -> None:
@@ -19,7 +14,8 @@ def _defaults() -> None:
     stream.setdefault("maxrate", stream.get("video_bitrate", "2500k"))
     stream.setdefault("buffer_size", "5000k")
     stream.setdefault("mobile_mode", False)
-    stream.setdefault("mobile_profile", "stable")
+    stream.setdefault("quality_profile", "mobile_standard")
+    stream.setdefault("auto_quality", False)
     stream.setdefault("reconnect_enabled", True)
     stream.setdefault("reconnect_delay", 3)
     config.setdefault("recording", {
@@ -54,7 +50,6 @@ def settings_section(section: str):
 
     if request.method == "POST":
         stream = config["stream"]
-
         if section == "target":
             platform = request.form.get("platform", "youtube").lower()
             stream["platform"] = platform if platform in {"youtube", "twitch", "custom"} else "youtube"
@@ -70,21 +65,23 @@ def settings_section(section: str):
             stream["width"] = max(320, min(3840, int(request.form.get("width", 1280))))
             stream["height"] = max(240, min(2160, int(request.form.get("height", 720))))
             stream["fps"] = max(10, min(60, int(request.form.get("fps", 30))))
+            stream["quality_profile"] = "custom"
             return _save("Geräte und Bildformat gespeichert")
 
         if section == "mobile":
             stream["mobile_mode"] = request.form.get("mobile_mode") == "on"
-            profile = request.form.get("mobile_profile", "stable")
-            stream["mobile_profile"] = profile if profile in {*MOBILE_PROFILES, "custom"} else "stable"
-            if stream["mobile_profile"] in MOBILE_PROFILES:
-                stream.update(MOBILE_PROFILES[stream["mobile_profile"]])
+            stream["auto_quality"] = request.form.get("auto_quality") == "on"
+            profile = request.form.get("quality_profile", "mobile_standard")
+            if profile == "custom":
+                stream["quality_profile"] = "custom"
+                stream["video_bitrate"] = request.form.get("video_bitrate", "1800k").strip()
+                stream["maxrate"] = request.form.get("maxrate", "2200k").strip()
+                stream["buffer_size"] = request.form.get("buffer_size", "4400k").strip()
             else:
-                stream["video_bitrate"] = request.form.get("video_bitrate", "1500k").strip()
-                stream["maxrate"] = request.form.get("maxrate", "1800k").strip()
-                stream["buffer_size"] = request.form.get("buffer_size", "3600k").strip()
+                apply_profile(stream, profile)
             stream["reconnect_enabled"] = request.form.get("reconnect_enabled") == "on"
             stream["reconnect_delay"] = max(1, min(60, int(request.form.get("reconnect_delay", 3))))
-            return _save("Mobilfunk-Einstellungen gespeichert")
+            return _save("Qualitäts- und Netzwerkeinstellungen gespeichert")
 
         if section == "recording":
             rec = config["recording"]
@@ -117,10 +114,4 @@ def settings_section(section: str):
                 config["web"]["password"] = password
             return _save("System-Einstellungen gespeichert")
 
-    return render_template(
-        "settings_section.html",
-        section=section,
-        config=config,
-        profiles=MOBILE_PROFILES,
-        message=request.args.get("saved"),
-    )
+    return render_template("settings_section.html", section=section, config=config, profiles=STREAM_PROFILES, message=request.args.get("saved"))
