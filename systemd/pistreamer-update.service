@@ -2,10 +2,11 @@
 Description=PiStreamer Web Update
 After=network-online.target
 Wants=network-online.target
+ConditionPathExists=/opt/pistreamer/current
 
 [Service]
 Type=oneshot
-ExecStart=/opt/pistreamer/scripts/pistreamer-update.sh
+ExecStart=/usr/local/libexec/pistreamer-update
 User=root
 Group=root
 Nice=10

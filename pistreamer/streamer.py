@@ -11,6 +11,8 @@ from .profiles import apply_profile, lower_profile
 
 
 class StreamManager:
+    FAILURE_WINDOW_SECONDS = 120
+
     def __init__(self, config: dict):
         self.config = config
         self.process: subprocess.Popen[str] | None = None
@@ -22,28 +24,55 @@ class StreamManager:
         self.reconnects = 0
         self.dropped_frames = 0
         self.ffmpeg_speed: float | None = None
-        self.recent_failures = 0
         self._failure_times: deque[float] = deque(maxlen=20)
+
+    @property
+    def recent_failures(self) -> int:
+        now = time.monotonic()
+        while self._failure_times and now - self._failure_times[0] > self.FAILURE_WINDOW_SECONDS:
+            self._failure_times.popleft()
+        return len(self._failure_times)
 
     @staticmethod
     def _overlay_position(name: str, margin: int = 20) -> tuple[str, str]:
-        positions = {"top_left": (str(margin), str(margin)), "top_right": (f"W-w-{margin}", str(margin)), "bottom_left": (str(margin), f"H-h-{margin}"), "bottom_right": (f"W-w-{margin}", f"H-h-{margin}")}
+        positions = {
+            "top_left": (str(margin), str(margin)),
+            "top_right": (f"W-w-{margin}", str(margin)),
+            "bottom_left": (str(margin), f"H-h-{margin}"),
+            "bottom_right": (f"W-w-{margin}", f"H-h-{margin}"),
+        }
         return positions.get(name, positions["top_right"])
 
     @staticmethod
     def _text_position(name: str, margin: int = 20) -> tuple[str, str]:
-        positions = {"top_left": (str(margin), str(margin)), "top_right": (f"w-text_w-{margin}", str(margin)), "bottom_left": (str(margin), f"h-text_h-{margin}"), "bottom_right": (f"w-text_w-{margin}", f"h-text_h-{margin}")}
+        positions = {
+            "top_left": (str(margin), str(margin)),
+            "top_right": (f"w-text_w-{margin}", str(margin)),
+            "bottom_left": (str(margin), f"h-text_h-{margin}"),
+            "bottom_right": (f"w-text_w-{margin}", f"h-text_h-{margin}"),
+        }
         return positions.get(name, positions["bottom_left"])
 
     @staticmethod
     def _escape_drawtext(value: str) -> str:
-        return value.replace("\\", r"\\").replace("'", r"\'").replace(":", r"\:").replace("%", r"\%").replace("[", r"\[").replace("]", r"\]")
+        return (
+            value.replace("\\", r"\\")
+            .replace("'", r"\'")
+            .replace(":", r"\:")
+            .replace("%", r"\%")
+            .replace("[", r"\[")
+            .replace("]", r"\]")
+        )
 
     @staticmethod
     def _stream_target(stream: dict) -> tuple[str, str]:
         platform = str(stream.get("platform", "youtube")).lower()
         labels = {"youtube": "YouTube", "twitch": "Twitch", "custom": "RTMP"}
-        urls = {"youtube": str(stream.get("youtube_url", "rtmp://a.rtmp.youtube.com/live2")), "twitch": str(stream.get("twitch_url", "rtmp://live.twitch.tv/app")), "custom": str(stream.get("custom_url", ""))}
+        urls = {
+            "youtube": str(stream.get("youtube_url", "rtmp://a.rtmp.youtube.com/live2")),
+            "twitch": str(stream.get("twitch_url", "rtmp://live.twitch.tv/app")),
+            "custom": str(stream.get("custom_url", "")),
+        }
         if platform not in urls:
             raise ValueError("Unbekannte Streaming-Plattform")
         server_url = urls[platform].strip()
@@ -58,7 +87,10 @@ class StreamManager:
 
     def _clean_recordings(self, directory: Path, max_storage_gb: int) -> None:
         limit = max_storage_gb * 1024 * 1024 * 1024
-        files = sorted((p for p in directory.glob("*.mkv") if p.is_file()), key=lambda p: p.stat().st_mtime)
+        files = sorted(
+            (p for p in directory.glob("*.mkv") if p.is_file()),
+            key=lambda p: p.stat().st_mtime,
+        )
         total = sum(p.stat().st_size for p in files)
         for path in files:
             if total <= limit:
@@ -81,7 +113,11 @@ class StreamManager:
             self._clean_recordings(directory, max(1, int(recording.get("max_storage_gb", 20))))
         segment_seconds = max(10, int(recording.get("segment_seconds", 60)))
         filename = directory / "pistreamer-%Y%m%d-%H%M%S.mkv"
-        tee = f"[f=flv:onfail=ignore]{target}|[f=segment:segment_time={segment_seconds}:reset_timestamps=1:strftime=1:onfail=ignore]{filename}"
+        tee = (
+            f"[f=flv:onfail=abort]{target}|"
+            f"[f=segment:segment_time={segment_seconds}:reset_timestamps=1:"
+            f"strftime=1:onfail=ignore]{filename}"
+        )
         self.logs.append(f"Sicherheitsaufnahme aktiv: {directory}")
         return ["-f", "tee", tee]
 
@@ -94,9 +130,20 @@ class StreamManager:
             pause_path = Path(str(self.config.get("pause_screen", {}).get("image_path", ""))).expanduser()
             if not pause_path.is_file():
                 raise ValueError(f"Pausenbild nicht gefunden: {pause_path}")
-            cmd += ["-loop", "1", "-framerate", str(s["fps"]), "-i", str(pause_path), "-f", "alsa", "-i", s["audio_device"], "-vf", f"scale={s['width']}:{s['height']}:force_original_aspect_ratio=decrease,pad={s['width']}:{s['height']}:(ow-iw)/2:(oh-ih)/2,format=yuv420p", "-map", "0:v:0", "-map", "1:a:0"]
+            cmd += [
+                "-loop", "1", "-framerate", str(s["fps"]), "-i", str(pause_path),
+                "-f", "alsa", "-i", s["audio_device"],
+                "-vf", (
+                    f"scale={s['width']}:{s['height']}:force_original_aspect_ratio=decrease,"
+                    f"pad={s['width']}:{s['height']}:(ow-iw)/2:(oh-ih)/2,format=yuv420p"
+                ),
+                "-map", "0:v:0", "-map", "1:a:0",
+            ]
         else:
-            cmd += ["-f", "v4l2", "-framerate", str(s["fps"]), "-video_size", f"{s['width']}x{s['height']}", "-i", s["video_device"]]
+            cmd += [
+                "-f", "v4l2", "-framerate", str(s["fps"]),
+                "-video_size", f"{s['width']}x{s['height']}", "-i", s["video_device"],
+            ]
             logo_enabled = bool(overlay.get("logo_enabled"))
             logo_path = Path(str(overlay.get("logo_path", ""))).expanduser()
             if logo_enabled:
@@ -119,7 +166,10 @@ class StreamManager:
                 text = self._escape_drawtext(str(overlay.get("text", "")).strip())
                 x, y = self._text_position(str(overlay.get("text_position", "bottom_left")))
                 size = max(12, min(96, int(overlay.get("text_size", 32))))
-                filters.append(f"{current_video}drawtext=text='{text}':x={x}:y={y}:fontsize={size}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=10[{output_label}]")
+                filters.append(
+                    f"{current_video}drawtext=text='{text}':x={x}:y={y}:fontsize={size}:"
+                    f"fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=10[{output_label}]"
+                )
             elif logo_enabled:
                 filters.append(f"{current_video}null[{output_label}]")
             if filters:
@@ -129,10 +179,20 @@ class StreamManager:
         bitrate = str(s.get("video_bitrate", "2500k"))
         maxrate = str(s.get("maxrate", bitrate))
         buffer_size = str(s.get("buffer_size", "5000k"))
-        cmd += ["-c:v", "libx264", "-preset", "veryfast", "-tune", "zerolatency", "-profile:v", "high", "-level", "4.1", "-b:v", bitrate, "-maxrate", maxrate, "-bufsize", buffer_size, "-pix_fmt", "yuv420p", "-g", str(int(s["fps"]) * 2), "-keyint_min", str(int(s["fps"]) * 2), "-sc_threshold", "0", "-c:a", "aac", "-b:a", s["audio_bitrate"], "-ar", "44100", "-shortest", "-flush_packets", "1"]
+        cmd += [
+            "-c:v", "libx264", "-preset", "veryfast", "-tune", "zerolatency",
+            "-profile:v", "high", "-level", "4.1", "-b:v", bitrate,
+            "-maxrate", maxrate, "-bufsize", buffer_size, "-pix_fmt", "yuv420p",
+            "-g", str(int(s["fps"]) * 2), "-keyint_min", str(int(s["fps"]) * 2),
+            "-sc_threshold", "0", "-c:a", "aac", "-b:a", s["audio_bitrate"],
+            "-ar", "44100", "-shortest", "-flush_packets", "1",
+        ]
         cmd += self._output_args(target)
         self.logs.append(f"Streaming-Ziel: {platform_label}")
-        self.logs.append(f"Profil: {s.get('quality_profile', 'custom')} · {s['width']}x{s['height']}@{s['fps']} · {bitrate}")
+        self.logs.append(
+            f"Profil: {s.get('quality_profile', 'custom')} · "
+            f"{s['width']}x{s['height']}@{s['fps']} · {bitrate}"
+        )
         return cmd
 
     def start(self) -> None:
@@ -140,9 +200,17 @@ class StreamManager:
             if self.is_running():
                 return
             self._manual_stop = False
+            self.dropped_frames = 0
+            self.ffmpeg_speed = None
             cmd = self._command()
             self.logs.append("Starte Pausenbild …" if self.paused else "Starte FFmpeg …")
-            self.process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, bufsize=1)
+            self.process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+            )
             self.started_at = time.time()
             threading.Thread(target=self._read_logs, args=(self.process,), daemon=True).start()
 
@@ -167,15 +235,13 @@ class StreamManager:
             self.started_at = None
         stream = self.config.get("stream", {})
         if not self._manual_stop:
-            now = time.monotonic()
-            self._failure_times.append(now)
-            self.recent_failures = sum(1 for stamp in self._failure_times if now - stamp <= 120)
+            self._failure_times.append(time.monotonic())
             if stream.get("auto_quality", False) and self.recent_failures >= 2:
                 current = str(stream.get("quality_profile", "mobile_standard"))
                 fallback = lower_profile(current)
                 if fallback != current and apply_profile(stream, fallback):
                     self.logs.append(f"Automatische Qualitätsanpassung: {current} → {fallback}")
-                    self.recent_failures = 0
+                    self._failure_times.clear()
         if not self._manual_stop and stream.get("reconnect_enabled", True):
             self.reconnects += 1
             delay = max(1, int(stream.get("reconnect_delay", 3)))
@@ -196,6 +262,7 @@ class StreamManager:
             self.process.wait(timeout=8)
         except subprocess.TimeoutExpired:
             self.process.kill()
+            self.process.wait(timeout=3)
         self.started_at = None
 
     def stop(self) -> None:

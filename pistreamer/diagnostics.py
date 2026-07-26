@@ -6,6 +6,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import jsonify, render_template, request
+from werkzeug.exceptions import HTTPException
 
 from .app import app, api_auth_required, auth_required, config
 from .logging_setup import DEFAULT_TIMEZONE, apply_timezone, configure_logging, read_log_lines
@@ -35,6 +36,8 @@ def log_request_start() -> None:
 
 @app.errorhandler(Exception)
 def log_unhandled_exception(exc: Exception):
+    if isinstance(exc, HTTPException):
+        return exc
     app.logger.exception("Unbehandelter Serverfehler bei %s %s", request.method, request.path)
     return jsonify({"error": "Interner Serverfehler"}), 500
 
