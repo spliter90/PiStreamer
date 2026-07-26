@@ -8,17 +8,23 @@ Type=simple
 User=__USER__
 Group=__GROUP__
 SupplementaryGroups=video audio
-WorkingDirectory=/opt/pistreamer
+WorkingDirectory=/opt/pistreamer/current
 Environment=PISTREAMER_CONFIG=/etc/pistreamer/config.yaml
 Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=TZ=Europe/Berlin
 RuntimeDirectory=pistreamer
 RuntimeDirectoryMode=0775
-ExecStart=/opt/pistreamer/.venv/bin/python /opt/pistreamer/run.py
+RuntimeDirectoryPreserve=restart
+ExecStart=/opt/pistreamer/current/.venv/bin/python /opt/pistreamer/current/run.py
 Restart=always
 RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/pistreamer/data /etc/pistreamer /run/pistreamer
+RestrictSUIDSGID=true
 
 [Install]
 WantedBy=multi-user.target
