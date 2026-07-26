@@ -3,6 +3,7 @@ web:
   port: 8080
   username: admin
   password: change-me
+
 stream:
   platform: youtube
   youtube_url: rtmp://a.rtmp.youtube.com/live2
@@ -15,5 +16,34 @@ stream:
   height: 720
   fps: 30
   video_bitrate: 2500k
+  maxrate: 3000k
+  buffer_size: 6000k
   audio_bitrate: 128k
+  quality_profile: wifi_standard
+  auto_quality: false
+  reconnect_enabled: true
+  reconnect_delay: 3
   autostart: false
+
+overlay:
+  logo_enabled: false
+  logo_path: /opt/pistreamer/data/logo.png
+  logo_position: top_right
+  logo_width_percent: 20
+  text_enabled: false
+  text: PiStreamer Live
+  text_position: bottom_left
+  text_size: 32
+
+pause_screen:
+  image_path: /opt/pistreamer/data/pause.png
+
+recording:
+  enabled: false
+  path: /opt/pistreamer/data/recordings
+  segment_seconds: 60
+  max_storage_gb: 20
+  delete_oldest: true
+
+system:
+  timezone: Europe/Berlin
