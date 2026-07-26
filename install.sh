@@ -18,6 +18,7 @@ MODE="install"
 TMP_DIR=""
 NEW_RELEASE=""
 PREVIOUS_LINK=""
+UNIT_BACKUP_DIR=""
 
 log() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 ok() { printf '\033[1;32m✓ %s\033[0m\n' "$*"; }
@@ -91,9 +92,21 @@ rollback_release() {
     rm -f "$rollback_link"
     ln -s "$PREVIOUS_LINK" "$rollback_link"
     mv -Tf "$rollback_link" "$CURRENT_LINK"
-    systemctl daemon-reload
-    systemctl restart pistreamer.service || true
+  else
+    rm -f "$CURRENT_LINK"
   fi
+  if [[ -n "$UNIT_BACKUP_DIR" && -d "$UNIT_BACKUP_DIR" ]]; then
+    for unit in pistreamer.service pistreamer-update.service pistreamer-update.path; do
+      if [[ -f "$UNIT_BACKUP_DIR/$unit" ]]; then
+        install -m 0644 -o root -g root "$UNIT_BACKUP_DIR/$unit" "/etc/systemd/system/$unit"
+      elif [[ -z "$PREVIOUS_LINK" ]]; then
+        rm -f "/etc/systemd/system/$unit"
+      fi
+    done
+  fi
+  [[ -n "$NEW_RELEASE" ]] && rm -rf -- "$NEW_RELEASE"
+  systemctl daemon-reload
+  [[ -n "$PREVIOUS_LINK" ]] && systemctl restart pistreamer.service || true
 }
 
 prune_releases() {
@@ -167,6 +180,15 @@ else
     || fail "Repository konnte nicht heruntergeladen werden."
   SOURCE_DIR="$TMP_DIR/PiStreamer"
 fi
+
+if [[ -z "$TMP_DIR" ]]; then
+  TMP_DIR="$(mktemp -d)"
+fi
+UNIT_BACKUP_DIR="$TMP_DIR/unit-backup"
+mkdir -p "$UNIT_BACKUP_DIR"
+for unit in pistreamer.service pistreamer-update.service pistreamer-update.path; do
+  [[ -f "/etc/systemd/system/$unit" ]] && cp -a "/etc/systemd/system/$unit" "$UNIT_BACKUP_DIR/$unit"
+done
 
 for required in run.py requirements.txt VERSION config/config.example.yaml \
   systemd/pistreamer.service systemd/pistreamer-update.service \
