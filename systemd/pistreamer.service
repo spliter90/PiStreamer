@@ -16,7 +16,7 @@ Environment=TZ=Europe/Berlin
 RuntimeDirectory=pistreamer
 RuntimeDirectoryMode=0775
 RuntimeDirectoryPreserve=restart
-ExecStart=/opt/pistreamer/current/.venv/bin/python /opt/pistreamer/current/run.py
+ExecStart=/usr/bin/env /opt/pistreamer/current/.venv/bin/python /opt/pistreamer/current/run.py
 Restart=always
 RestartSec=5
 NoNewPrivileges=true
