@@ -1,1 +1,90 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><title>PiStreamer</title></head><body><header><h1>PiStreamer</h1><nav><a href="/settings-menu">Einstellungen</a><a href="/logout">Abmelden</a></nav></header><main><section class="card hero"><div><span id="dot" class="dot"></span><strong id="state">Lade …</strong></div><div id="uptime" class="muted">00:00:00</div></section><section class="grid"><article class="card"><span>CPU</span><strong id="cpu">–</strong></article><article class="card"><span>RAM</span><strong id="ram">–</strong></article><article class="card"><span>Temperatur</span><strong id="temp">–</strong></article></section><section class="grid"><article class="card"><span>Stream-Gesundheit</span><strong id="health">–</strong><small id="health-message" class="muted"></small></article><article class="card"><span>Upload aktuell</span><strong id="upload">–</strong></article><article class="card"><span>Profil</span><strong id="profile">–</strong></article><article class="card"><span>Reconnects / Drops</span><strong id="stream-errors">0 / 0</strong></article></section><section class="actions"><button onclick="action('start')">▶ Start</button><button id="pause-button" class="secondary" onclick="togglePause()" disabled>⏸ Pause</button><button class="danger" onclick="action('stop')">■ Stop</button><button class="secondary" onclick="action('restart')">↻ Neustart</button></section><section class="card"><h2>FFmpeg-Log</h2><pre id="logs">Noch keine Meldungen.</pre></section></main><script src="/static/app.js"></script></body></html>
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <link rel="stylesheet" href="/static/style.css">
+  <title>PiStreamer Dashboard 2.0</title>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">PS</span>
+      <div><strong>PiStreamer</strong><small>Dashboard 2.0</small></div>
+    </div>
+    <nav>
+      <a href="/settings-menu">Einstellungen</a>
+      <a href="/logout">Abmelden</a>
+    </nav>
+  </header>
+
+  <main class="dashboard-shell">
+    <section class="hero card">
+      <div class="hero-status">
+        <span id="dot" class="status-dot"></span>
+        <div><small>Streamstatus</small><h1 id="state">Verbindung wird aufgebaut …</h1><p id="health-message">Statusdaten werden geladen.</p></div>
+      </div>
+      <div class="hero-meta">
+        <span id="platform" class="badge">–</span>
+        <span id="profile" class="badge badge-muted">–</span>
+        <strong id="uptime">00:00:00</strong>
+        <small>Stream-Laufzeit</small>
+      </div>
+    </section>
+
+    <section class="actions card" aria-label="Streamsteuerung">
+      <button onclick="action('start')">▶ Stream starten</button>
+      <button id="pause-button" class="secondary" onclick="togglePause()" disabled>⏸ Pause</button>
+      <button class="secondary" onclick="action('restart')">↻ Neu starten</button>
+      <button class="danger" onclick="action('stop')">■ Stoppen</button>
+    </section>
+
+    <section class="metric-grid">
+      <article class="metric-card card"><span>CPU</span><strong id="cpu">–</strong><div class="meter"><i id="cpu-bar"></i></div></article>
+      <article class="metric-card card"><span>Arbeitsspeicher</span><strong id="ram">–</strong><div class="meter"><i id="ram-bar"></i></div></article>
+      <article class="metric-card card"><span>Temperatur</span><strong id="temp">–</strong><small id="temp-note">Thermik</small></article>
+      <article class="metric-card card"><span>Speicher</span><strong id="disk">–</strong><div class="meter"><i id="disk-bar"></i></div></article>
+      <article class="metric-card card"><span>Upload aktuell</span><strong id="upload">–</strong><small id="upload-note">Netzwerkdurchsatz</small></article>
+      <article class="metric-card card"><span>FFmpeg-Speed</span><strong id="speed">–</strong><small id="speed-note">Encoderleistung</small></article>
+    </section>
+
+    <section class="content-grid">
+      <article class="card panel stream-monitor">
+        <div class="panel-head"><div><small>Live-Monitor</small><h2>FFmpeg & Stream</h2></div><span id="health" class="health-badge">OFFLINE</span></div>
+        <dl class="detail-grid">
+          <div><dt>Auflösung</dt><dd id="resolution">–</dd></div>
+          <div><dt>Framerate</dt><dd id="fps">–</dd></div>
+          <div><dt>Video-Bitrate</dt><dd id="video-bitrate">–</dd></div>
+          <div><dt>Audio-Bitrate</dt><dd id="audio-bitrate">–</dd></div>
+          <div><dt>FFmpeg PID</dt><dd id="ffmpeg-pid">–</dd></div>
+          <div><dt>Reconnects / Drops</dt><dd id="stream-errors">0 / 0</dd></div>
+        </dl>
+        <div class="chart-wrap"><div class="chart-label"><span>Upload-Verlauf</span><small>letzte Messpunkte</small></div><canvas id="network-chart" width="800" height="180"></canvas></div>
+      </article>
+
+      <aside class="card panel system-panel">
+        <div class="panel-head"><div><small>Gerät</small><h2>Systemstatus</h2></div><span id="api-state" class="connection-pill">API</span></div>
+        <dl class="stacked-details">
+          <div><dt>Hostname</dt><dd id="hostname">–</dd></div>
+          <div><dt>Systemlaufzeit</dt><dd id="system-uptime">–</dd></div>
+          <div><dt>Videoquelle</dt><dd id="video-device">–</dd></div>
+          <div><dt>Audioquelle</dt><dd id="audio-device">–</dd></div>
+          <div><dt>Letzte Aktualisierung</dt><dd id="updated-at">–</dd></div>
+        </dl>
+      </aside>
+    </section>
+
+    <section class="card panel log-panel">
+      <div class="panel-head log-head">
+        <div><small>Diagnose</small><h2>Logging-Anzeige</h2></div>
+        <div class="log-tools"><input id="log-filter" type="search" placeholder="Logs filtern …"><button class="secondary compact" onclick="toggleLogFollow()" id="follow-button">Auto-Scroll an</button></div>
+      </div>
+      <pre id="logs" aria-live="polite">Noch keine Meldungen.</pre>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
