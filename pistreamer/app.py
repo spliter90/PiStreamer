@@ -10,7 +10,7 @@ from functools import wraps
 import psutil
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
-from .config import load_config, save_config
+from .config import load_config
 from .streamer import StreamManager
 
 config = load_config()
@@ -27,6 +27,7 @@ def auth_required(fn):
         if not session.get("authenticated"):
             return redirect(url_for("login"))
         return fn(*args, **kwargs)
+
     return wrapped
 
 
@@ -36,6 +37,7 @@ def api_auth_required(fn):
         if not session.get("authenticated"):
             return jsonify({"error": "unauthorized"}), 401
         return fn(*args, **kwargs)
+
     return wrapped
 
 
@@ -78,18 +80,20 @@ def temperature() -> float | None:
 @app.get("/api/status")
 @api_auth_required
 def status():
-    return jsonify({
-        "streaming": manager.is_running(),
-        "paused": manager.paused,
-        "uptime": manager.uptime(),
-        "cpu": psutil.cpu_percent(interval=0.1),
-        "ram": psutil.virtual_memory().percent,
-        "temperature": temperature(),
-        "hostname": socket.gethostname(),
-        "platform": config["stream"].get("platform", "youtube"),
-        "video_device": config["stream"]["video_device"],
-        "audio_device": config["stream"]["audio_device"],
-    })
+    return jsonify(
+        {
+            "streaming": manager.is_running(),
+            "paused": manager.paused,
+            "uptime": manager.uptime(),
+            "cpu": psutil.cpu_percent(interval=0.1),
+            "ram": psutil.virtual_memory().percent,
+            "temperature": temperature(),
+            "hostname": socket.gethostname(),
+            "platform": config["stream"].get("platform", "youtube"),
+            "video_device": config["stream"]["video_device"],
+            "audio_device": config["stream"]["audio_device"],
+        }
+    )
 
 
 @app.post("/api/start")
@@ -154,64 +158,19 @@ def logs():
 def devices():
     videos = sorted(str(p) for p in __import__("pathlib").Path("/dev").glob("video*"))
     try:
-        audio = subprocess.run(["arecord", "-L"], capture_output=True, text=True, timeout=5).stdout.splitlines()
+        audio = subprocess.run(
+            ["arecord", "-L"], capture_output=True, text=True, timeout=5, check=False
+        ).stdout.splitlines()
         audio = [line.strip() for line in audio if line and not line.startswith(" ")]
-    except Exception:
+    except (OSError, subprocess.TimeoutExpired):
         audio = []
     return jsonify({"video": videos, "audio": audio})
 
 
-@app.route("/settings", methods=["GET", "POST"])
+@app.get("/settings")
 @auth_required
 def settings():
-    global config
-    message = None
-    if request.method == "POST":
-        s = config["stream"]
-        w = config["web"]
-        overlay = config.setdefault("overlay", {})
-        pause_screen = config.setdefault("pause_screen", {})
-
-        platform = request.form.get("platform", "youtube").strip().lower()
-        if platform not in {"youtube", "twitch", "custom"}:
-            platform = "youtube"
-        custom_url = request.form.get("custom_url", "").strip()
-        if custom_url and not custom_url.lower().startswith(("rtmp://", "rtmps://")):
-            return render_template(
-                "settings.html",
-                config=config,
-                message=None,
-                error="Die benutzerdefinierte Serveradresse muss mit rtmp:// oder rtmps:// beginnen.",
-            ), 400
-
-        s["platform"] = platform
-        s["custom_url"] = custom_url
-        s["stream_key"] = request.form.get("stream_key", "").strip()
-        s["video_device"] = request.form.get("video_device", "/dev/video0").strip()
-        s["audio_device"] = request.form.get("audio_device", "default").strip()
-        s["fps"] = int(request.form.get("fps", 30))
-        s["video_bitrate"] = request.form.get("video_bitrate", "2500k").strip()
-        s["autostart"] = request.form.get("autostart") == "on"
-
-        overlay["logo_enabled"] = request.form.get("logo_enabled") == "on"
-        overlay["logo_path"] = request.form.get("logo_path", "").strip()
-        overlay["logo_position"] = request.form.get("logo_position", "top_right")
-        overlay["logo_width_percent"] = max(5, min(50, int(request.form.get("logo_width_percent", 20))))
-        overlay["text_enabled"] = request.form.get("text_enabled") == "on"
-        overlay["text"] = request.form.get("overlay_text", "").strip()
-        overlay["text_position"] = request.form.get("text_position", "bottom_left")
-        overlay["text_size"] = max(12, min(96, int(request.form.get("text_size", 32))))
-        pause_screen["image_path"] = request.form.get("pause_image_path", "").strip()
-
-        new_password = request.form.get("password", "").strip()
-        if new_password:
-            w["password"] = new_password
-        save_config(config)
-        manager.config = config
-        message = "Einstellungen gespeichert"
-
-    masked = {**config, "stream": {**config["stream"], "stream_key": config["stream"].get("stream_key", "")}}
-    return render_template("settings.html", config=masked, message=message, error=None)
+    return redirect(url_for("settings_menu"))
 
 
 if config["stream"].get("autostart"):
